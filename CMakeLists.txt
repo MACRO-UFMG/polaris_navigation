@@ -1,26 +1,141 @@
 cmake_minimum_required(VERSION 3.8)
 project(espeleo_control2)
 
+
+#-----------------------------------------------------------------------------
+# 1. Compiler Configuration
+#-----------------------------------------------------------------------------
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# find dependencies
+#-----------------------------------------------------------------------------
+# 2. Dependency Management
+#-----------------------------------------------------------------------------
 find_package(ament_cmake REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
 
+# Core ROS2 packages
+find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
+
+# Eigen3 configuration
+# find_package(eigen3_cmake_module REQUIRED)
+# find_package(Eigen3 REQUIRED)
+# message(STATUS "Found Eigen3 v${EIGEN3_VERSION}")
+
+# # Eigen compiler settings (applied globally)
+# add_compile_definitions(EIGEN_MPL2_ONLY EIGEN_NO_DEBUG)
+
+#-----------------------------------------------------------------------------
+# 3. Executable Targets
+#-----------------------------------------------------------------------------
+# Define executables with their specific dependencies
+
+# Define the executable
+add_executable(vector_field_controller src/vector_field_control.cpp 
+)
+ament_target_dependencies(vector_field_controller
+  rclcpp
+  std_msgs
+  std_srvs
+  nav_msgs
+  geometry_msgs
+  sensor_msgs
+  tf2_ros
+  tf2_geometry_msgs
+  visualization_msgs
+)
+target_compile_features(vector_field_controller PRIVATE cxx_std_17)
+
+
+
+# add_executable(follow_wall src/follow_wall.cpp)
+# ament_target_dependencies(follow_wall
+#   rclcpp
+#   std_msgs
+#   std_srvs
+#   nav_msgs
+#   geometry_msgs
+#   sensor_msgs
+#   tf2_ros
+#   tf2_geometry_msgs
+#   visualization_msgs
+# )
+# target_compile_features(follow_wall PRIVATE cxx_std_17)
+
+
+# add_executable(follow_corridor src/follow_corridor.cpp)
+# ament_target_dependencies(follow_corridor
+#   rclcpp
+#   std_msgs
+#   std_srvs
+#   nav_msgs
+#   geometry_msgs
+#   sensor_msgs
+#   tf2_ros
+#   tf2_geometry_msgs
+#   visualization_msgs
+# )
+# target_compile_features(follow_corridor PRIVATE cxx_std_17)
+
+
+#-----------------------------------------------------------------------------
+# 4. Installation Configuration
+#-----------------------------------------------------------------------------
+# Install executables
+install(TARGETS 
+  vector_field_controller
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(PROGRAMS
+  scripts/robot_simulator.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+# Install launch and config files
+install(
+  DIRECTORY 
+    launch 
+    config
+  DESTINATION share/${PROJECT_NAME}
+)
+
+
+
+#-----------------------------------------------------------------------------
+# 5. Package Export and Testing
+#-----------------------------------------------------------------------------
+# Export dependencies for downstream packages
+ament_export_dependencies(
+  rclcpp
+  std_msgs
+  std_srvs
+  nav_msgs
+  geometry_msgs
+  sensor_msgs
+  visualization_msgs
+  tf2_ros
+  tf2_geometry_msgs
+  eigen3_cmake_module
+)
+
+# Enable linting if testing is enabled
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
-  # the following line skips the linter which checks for copyrights
-  # comment the line when a copyright and license is added to all source files
-  set(ament_cmake_copyright_FOUND TRUE)
-  # the following line skips cpplint (only works in a git repo)
-  # comment the line when this package is in a git repo and when
-  # a copyright and license is added to all source files
-  set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
 endif()
 
 ament_package()
+

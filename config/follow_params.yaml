@@ -1,0 +1,36 @@
+
+#Parameters to follow a wall in stage simulator
+
+#Robots velocity
+vr: 0.5
+
+#Convergence gain for the vector field
+kf: 1.5
+
+#Distance from the wall
+epsilon: 0.5
+
+#Control distance for the feedback linearization
+d: 0.2
+
+#Flag to invert the motion of the espeleorobo (move backwards)
+invert_motion_flag: False
+
+#Flag to choose which side
+#If true the wall keeps at the right of the robot
+#If false the wall keeps at the left of the robot
+keep_wall_right: True
+
+#Name of the cmd_vel topic
+cmd_vel_topic: cmd_vel
+
+#Name of the laser scan topic
+scan_topic: scan
+
+#Name of the laser frame, used for rvis Marker only
+laser_frame_id: base_laser_link
+
+#Enable the saving of gt data
+log_gt_flag: False
+gt_topic: base_pose_ground_truth
+log_path_name: /home/adrianomcr/log_follow_wall.txt
