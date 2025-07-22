@@ -107,7 +107,7 @@ Arquivos de referência com alguns métodos já implementados estão em espeleo_
 
 ### 3. `Closest Obstacle`
 
-Deve receber diferentes tipos de sensores lidar de entrada e retornar o obstáculo mais próximo da posição atual do robô de modo compatível com o `vector_field_controller`.
+Deve receber diferentes tipos de sensores lidar de entrada e retornar o obstáculo mais próximo da posição atual do robô de modo compatível com o `vector_field_controller`. Use [DBScan clustering](https://www.open3d.org/docs/release/tutorial/geometry/pointcloud.html).
 
 ### 4. `Feedback Linearization`
 
