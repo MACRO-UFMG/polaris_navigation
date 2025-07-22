@@ -3,7 +3,7 @@
 ![ROS 2](https://img.shields.io/badge/ROS%202-Jazzy-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-Robot controller package based on vector fields. It is designed to guide a robot along a reference path sent by the [planner]{https://github.com/ITVRoC/espeleo_planning2} while reactively avoiding obstacles. The package also includes a simple simulation node to test and demonstrate the controller.
+Robot controller package based on vector fields. It is designed to guide a robot along a reference path sent by the [planner](https://github.com/ITVRoC/espeleo_planning2) while reactively avoiding obstacles. The package also includes a simple simulation node to test and demonstrate the controller.
 
 The obstacle avoidance implementation is based on the paper: [Vector field for curve tracking with obstacle avoidance](https://ieeexplore.ieee.org/document/9992435) by Nunes, A. H. D., et al. (2022).
 
@@ -22,9 +22,9 @@ The obstacle avoidance implementation is based on the paper: [Vector field for c
     cd ~/espeleo_ws/src
     ```
 
-2.  Clone this repository (replace with the correct URL):
+2.  Clone this repository:
     ```bash
-    git clone [https://github.com/your-repository/espeleo_control2.git](https://github.com/your-repository/espeleo_control2.git)
+    git clone [https://github.com/ITVRoC/espeleo_control2.git](https://github.com/ITVRoC/espeleo_control2.git)
     ```
 3.  Install dependencies:
     ```bash
@@ -42,7 +42,7 @@ The obstacle avoidance implementation is based on the paper: [Vector field for c
 
 ## How to Use
 
-To run a full demonstration including the controller, path planner (you must have the [planner]{https://github.com/ITVRoC/espeleo_planning2} compiled in the same workspace), robot simulator, and RViz2, use the provided launch file:
+To run a full demonstration including the controller, path planner (you must have the [planner](https://github.com/ITVRoC/espeleo_planning2) compiled in the same workspace), robot simulator, and RViz2, use the provided launch file:
 
 ```bash
 ros2 launch espeleo_control2 demo.launch.xml
