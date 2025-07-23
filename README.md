@@ -26,14 +26,19 @@ The obstacle avoidance implementation is based on the paper: [Vector field for c
     ```bash
     git clone [https://github.com/ITVRoC/espeleo_control2.git](https://github.com/ITVRoC/espeleo_control2.git)
     ```
+3. Install dependencies
+    ```bash
+    cd ~/espeleo_ws
+    rosdep install -i --from-paths src/espeleo_control2 --rosdistro $ROS_DISTRO -y
+    ```
     
-3.  Build the package:
+4.  Build the package:
     ```bash
     cd ~/espeleo_ws
     colcon build --symlink-install
     ```
     
-4.  Source the workspace:
+5.  Source the workspace:
     ```bash
     source install/setup.bash
     ```
