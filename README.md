@@ -121,6 +121,17 @@ Deve tratar a entrada de lidar reativamente para movimentar o robô de modo equi
 
 Deve tratar a entrada de lidar reativamente para movimentar o robô de modo a seguir uma parede a uma distância constante dela.
 
+## Troubleshooting
+
+If you run into the following error while building:
+
+    ```bash
+        fatal error: tf2_geometry_msgs/tf2_geometry_msgs.hpp: No such file or directory
+        14 | #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+    ```
+
+Change from .hpp to .h and try again.
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.

@@ -37,28 +37,22 @@
   <!-- 4. Math/Utility Dependencies -->
   <!-- ============================================== -->
   <depend>eigen3_cmake_module</depend>
-
-  <!-- ============================================== -->
-  <!-- 5. Build-Specific Dependencies -->
-  <!-- ============================================== -->
-  <build_depend>libeigen3-dev</build_depend>
-  <build_depend>libstdc++</build_depend>
   
   <!-- ============================================== -->
-  <!-- 6. Execution Dependencies -->
+  <!-- 5. Execution Dependencies -->
   <!-- ============================================== -->
   <exec_depend>ros2launch</exec_depend>
   <exec_depend>rviz2</exec_depend>
   <exec_depend>rclpy</exec_depend>
 
   <!-- ============================================== -->
-  <!-- 7. Testing Dependencies -->
+  <!-- 6. Testing Dependencies -->
   <!-- ============================================== -->
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 
   <!-- ============================================== -->
-  <!-- 8. Export Section -->
+  <!-- 7. Export Section -->
   <!-- ============================================== -->
   <export>
     <build_type>ament_cmake</build_type>
