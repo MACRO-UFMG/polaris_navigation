@@ -16,7 +16,7 @@ The obstacle avoidance implementation is based on the paper: [Vector field for c
 
 ### Installation Steps
 
-1.  Navigate to the `src` folder of your ROS 2 workspace:
+1.  Navigate to the `src` folder of your ROS 2 workspace, or if you don't have a workspace, create one:
     ```bash
     mkdir -p ~/espeleo_ws/src
     cd ~/espeleo_ws/src
@@ -26,16 +26,14 @@ The obstacle avoidance implementation is based on the paper: [Vector field for c
     ```bash
     git clone [https://github.com/ITVRoC/espeleo_control2.git](https://github.com/ITVRoC/espeleo_control2.git)
     ```
-3.  Install dependencies:
+    
+3.  Build the package:
     ```bash
     cd ~/espeleo_ws
-    rosdep install --from-paths src --ignore-src -y
-    ```
-4.  Build the package:
-    ```bash
     colcon build --symlink-install
     ```
-5.  Source the workspace:
+    
+4.  Source the workspace:
     ```bash
     source install/setup.bash
     ```
@@ -45,7 +43,7 @@ The obstacle avoidance implementation is based on the paper: [Vector field for c
 To run a full demonstration including the controller, path planner (you must have the [planner](https://github.com/ITVRoC/espeleo_planning2) compiled in the same workspace), robot simulator, and RViz2, use the provided launch file:
 
 ```bash
-ros2 launch espeleo_control2 demo.launch.xml
+ros2 launch espeleo_control2 demo.xml
 ```
 
 This will start all the necessary nodes, and you will be able to see the simulated robot (red sphere) following a path (white spheres) and avoiding an obstacle (blue sphere).
