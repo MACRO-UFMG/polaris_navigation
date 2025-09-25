@@ -93,7 +93,7 @@ private:
         pose_topic_name_ = declare_parameter<std::string>("pose_topic_name", "tf");
         pose_topic_type_ = declare_parameter<std::string>("pose_topic_type", "TFMessage");
         path_topic_name_ = declare_parameter<std::string>("path_topic_name", "ref_path");
-        cmd_vel_topic_name_ = declare_parameter<std::string>("cmd_vel_topic_name", "cmd_vel");
+        cmd_vel_topic_name_ = declare_parameter<std::string>("cmd_vel_topic_name", "vec_to_follow");
         closest_obstacle_topic_name_ = declare_parameter<std::string>("closest_obstacle_topic_name", "closest_obstacle"); // Corrected typo
         is_path_closed_service_name_ = declare_parameter<std::string>("is_path_closed_service_name", "is_path_closed");
 
@@ -379,7 +379,7 @@ private:
 
     void callbackTF(const tf2_msgs::msg::TFMessage::SharedPtr msg) {
         for (const auto& transform : msg->transforms) {
-            if (transform.child_frame_id == "robot/base_link") {
+            if (transform.child_frame_id == "base_footprint") {
                 updateRobotPose(
                     transform.transform.translation.x,
                     transform.transform.translation.y,

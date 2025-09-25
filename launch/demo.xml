@@ -12,10 +12,25 @@
     </node>
 
     <!-- Run the planner node -->
-    <node pkg="espeleo_planning2" exec="path_from_equation" name="planner" output="screen">
+    <node pkg="espeleo_planning2" exec="path_from_points" name="planner" output="screen">
     </node>
-    
-    <node pkg="espeleo_control2" exec="robot_simulator.py" name="robot_sim" output="screen">
-    </node>
+
+    <!-- <node pkg="espeleo_control2" exec="robot_simulator.py" name="robot_sim" output="screen">
+
+
+    </node> -->
+
+
+
+    <node pkg="tf2_ros"
+        exec="static_transform_publisher"
+        name="static_map_to_odom_publisher"
+        args="0 0 0 0 0 0 map odom" />
+
+
+    <!-- <node pkg="espeleo_control2" exec="vector_follower_node" name="vector_follower" output="screen">
+
+
+    </node> -->
 
 </launch>
