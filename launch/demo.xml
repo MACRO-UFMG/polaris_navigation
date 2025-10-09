@@ -22,10 +22,15 @@
 
 
 
+    <!-- <node pkg="tf2_ros"
+        exec="static_transform_publisher"
+        name="static_map_to_odom_publisher"
+        args="0 0 0 0 0 0 map odom" /> -->
+    
     <node pkg="tf2_ros"
         exec="static_transform_publisher"
         name="static_map_to_odom_publisher"
-        args="0 0 0 0 0 0 map odom" />
+        args="0 0 0 0 0 0 base_link fast_lio/base_link" />
 
 
     <!-- <node pkg="espeleo_control2" exec="vector_follower_node" name="vector_follower" output="screen">

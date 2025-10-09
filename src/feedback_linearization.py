@@ -79,10 +79,10 @@ class VectorFollowerNode(Node):
         # ## Parâmetros ##
 
 
-        self.declare_parameter('distancia_ponto_controle', 0.15)
+        self.declare_parameter('distancia_ponto_controle', 0.35)
 
 
-        self.declare_parameter('const_vel', 0.5)
+        self.declare_parameter('const_vel', 0.3)
 
 
         self.declare_parameter('const_omega', 2.0)
@@ -226,7 +226,7 @@ class VectorFollowerNode(Node):
             # Pede a transformação mais recente disponível
 
 
-            trans = self.tf_buffer.lookup_transform('odom', 'base_footprint', rclpy.time.Time())
+            trans = self.tf_buffer.lookup_transform('map', 'fast_lio/base_link', rclpy.time.Time())
 
 
         except TransformException as ex:

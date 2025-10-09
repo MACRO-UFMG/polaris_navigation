@@ -379,7 +379,7 @@ private:
 
     void callbackTF(const tf2_msgs::msg::TFMessage::SharedPtr msg) {
         for (const auto& transform : msg->transforms) {
-            if (transform.child_frame_id == "base_footprint") {
+            if (transform.child_frame_id == "fast_lio/base_link") {
                 updateRobotPose(
                     transform.transform.translation.x,
                     transform.transform.translation.y,
