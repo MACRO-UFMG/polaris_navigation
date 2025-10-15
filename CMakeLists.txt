@@ -43,8 +43,7 @@ find_package(visualization_msgs REQUIRED)
 # Define executables with their specific dependencies
 
 # Define the executable
-add_executable(vector_field_controller src/vector_field_control.cpp 
-)
+add_executable(vector_field_controller src/vector_field_control.cpp)
 ament_target_dependencies(vector_field_controller
   rclcpp
   std_msgs
@@ -58,7 +57,17 @@ ament_target_dependencies(vector_field_controller
 )
 target_compile_features(vector_field_controller PRIVATE cxx_std_17)
 
-
+# Closest Obstacle Detector (LaserScan 2D)
+add_executable(closest_obstacle_detector src/closest_obstacle_detector.cpp)
+ament_target_dependencies(closest_obstacle_detector
+  rclcpp
+  sensor_msgs
+  geometry_msgs
+  visualization_msgs
+  tf2_ros
+  tf2_geometry_msgs
+)
+target_compile_features(closest_obstacle_detector PRIVATE cxx_std_17)
 
 # add_executable(follow_wall src/follow_wall.cpp)
 # ament_target_dependencies(follow_wall
@@ -89,13 +98,13 @@ target_compile_features(vector_field_controller PRIVATE cxx_std_17)
 # )
 # target_compile_features(follow_corridor PRIVATE cxx_std_17)
 
-
 #-----------------------------------------------------------------------------
 # 4. Installation Configuration
 #-----------------------------------------------------------------------------
 # Install executables
 install(TARGETS 
   vector_field_controller
+  closest_obstacle_detector
   DESTINATION lib/${PROJECT_NAME}
 )
 

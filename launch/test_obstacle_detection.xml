@@ -15,6 +15,15 @@
     <node pkg="espeleo_planning2" exec="path_from_points" name="planner" output="screen">
     </node>
 
+    <!-- =================================================================== -->
+    <!-- PERCEPTION - LaserScan Obstacle Detector -->
+    <!-- =================================================================== -->
+    
+    <node pkg="espeleo_control2" exec="closest_obstacle_detector" 
+          name="closest_obstacle_detector" output="screen">
+        <param from="$(find-pkg-share espeleo_control2)/config/closest_obstacle_detector_params.yaml"/>
+    </node>
+
     <!-- <node pkg="espeleo_control2" exec="robot_simulator.py" name="robot_sim" output="screen">
 
 

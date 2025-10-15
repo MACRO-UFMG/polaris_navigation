@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import rclpy
 
 
@@ -226,7 +228,7 @@ class VectorFollowerNode(Node):
             # Pede a transformação mais recente disponível
 
 
-            trans = self.tf_buffer.lookup_transform('map', 'fast_lio/base_link', rclpy.time.Time())
+            trans = self.tf_buffer.lookup_transform('map', 'base_footprint', rclpy.time.Time())
 
 
         except TransformException as ex:
