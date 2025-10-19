@@ -87,7 +87,7 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
 
     void loadParameters() {
-        speed_ref_ = declare_parameter<double>("speed_ref", 0.5);
+        speed_ref_ = declare_parameter<double>("speed_ref", 0.2);
         convergence_gain_ = declare_parameter<double>("convergence_gain", 5.0);
         
         pose_topic_name_ = declare_parameter<std::string>("pose_topic_name", "tf");
@@ -99,9 +99,9 @@ private:
 
         // Obstacle avoidance parameters from the paper
         flag_follow_obstacle_ = declare_parameter<bool>("flag_follow_obstacle", true); // IMPORTANT: Must be set to true to enable avoidance
-        lambda_ = declare_parameter<double>("lambda", 0.4); 
-        switch_dist_ = declare_parameter<double>("switch_dist", 0.55); 
-        switch_dist_outer_ = declare_parameter<double>("switch_dist_outer", 0.7);
+        lambda_ = declare_parameter<double>("lambda", 0.7); 
+        switch_dist_ = declare_parameter<double>("switch_dist", 0.8); 
+        switch_dist_outer_ = declare_parameter<double>("switch_dist_outer", 1.1);
         
         closed_path_flag_ = false;
         logParameters();
@@ -379,7 +379,7 @@ private:
 
     void callbackTF(const tf2_msgs::msg::TFMessage::SharedPtr msg) {
         for (const auto& transform : msg->transforms) {
-            if (transform.child_frame_id == "fast_lio/base_link") {
+            if (transform.child_frame_id == "scout_mini/base_link") {
                 updateRobotPose(
                     transform.transform.translation.x,
                     transform.transform.translation.y,

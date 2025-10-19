@@ -77,7 +77,7 @@ private:
 
     void setupROS() {
         scan_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
-            input_topic_, 10, 
+            input_topic_, rclcpp::SensorDataQoS(), 
             std::bind(&LaserScanObstacleDetector::scanCallback, this, std::placeholders::_1));
         
         obstacle_pub_ = create_publisher<geometry_msgs::msg::Point>(output_topic_, 10);

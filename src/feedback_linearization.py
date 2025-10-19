@@ -81,7 +81,7 @@ class VectorFollowerNode(Node):
         # ## Parâmetros ##
 
 
-        self.declare_parameter('distancia_ponto_controle', 0.35)
+        self.declare_parameter('distancia_ponto_controle', 0.1)
 
 
         self.declare_parameter('const_vel', 0.3)
@@ -228,7 +228,7 @@ class VectorFollowerNode(Node):
             # Pede a transformação mais recente disponível
 
 
-            trans = self.tf_buffer.lookup_transform('map', 'base_footprint', rclpy.time.Time())
+            trans = self.tf_buffer.lookup_transform('world', 'scout_mini/base_link', rclpy.time.Time())
 
 
         except TransformException as ex:
