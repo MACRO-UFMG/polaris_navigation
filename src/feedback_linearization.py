@@ -14,6 +14,8 @@ from tf2_ros import TransformException
 
 from geometry_msgs.msg import Vector3, Twist
 
+from geometry_msgs.msg import PoseWithCovarianceStamped
+
 
 import numpy as np
 
@@ -146,6 +148,11 @@ class VectorFollowerNode(Node):
 
         self.vector_subscriber = self.create_subscription(Vector3, '/vec_to_follow', self.vector_callback, 10)
 
+        self.pose_subscriber = self.create_subscription(
+            PoseWithCovarianceStamped,
+            '/amcl_pose',
+            self.amcl_pose_callback,
+            10)
 
 
 
@@ -156,7 +163,9 @@ class VectorFollowerNode(Node):
         self.current_vector = None
 
 
-        self.theta = 0.0 # Orientação do robô, será atualizada via TF
+        #self.theta = 0.0 # Orientação do robô, será atualizada via TF
+
+        self.theta = None
 
 
         self.stuck_timer = 0.0
@@ -197,7 +206,12 @@ class VectorFollowerNode(Node):
 
         self.current_vector = msg
 
-
+    def amcl_pose_callback(self, msg):
+        """Callback para o tópico /amcl_pose. Atualiza a orientação (theta) do robô."""
+        # Extrai o quaternion da mensagem de pose
+        orientation_q = msg.pose.pose.orientation
+        # Converte o quaternion para o ângulo yaw (theta) e armazena
+        self.theta = quaternion_to_euler_yaw(orientation_q)
 
 
 
@@ -215,6 +229,9 @@ class VectorFollowerNode(Node):
 
             return
 
+        if self.theta is None:
+            self.get_logger().info("Aguardando a primeira pose do /amcl_pose...", throttle_duration_sec=5)
+            return
 
 
 
@@ -222,22 +239,22 @@ class VectorFollowerNode(Node):
         # 1. Obter a transformação de 'odom' para 'base_footprint'
 
 
-        try:
+        # try:
 
 
-            # Pede a transformação mais recente disponível
+        #     # Pede a transformação mais recente disponível
 
 
-            trans = self.tf_buffer.lookup_transform('world', 'scout_mini/base_link', rclpy.time.Time())
+        #     trans = self.tf_buffer.lookup_transform('world', 'scout_mini/base_link', rclpy.time.Time())
 
 
-        except TransformException as ex:
+        # except TransformException as ex:
 
 
-            self.get_logger().warn(f'Não foi possível obter a transformação: {ex}', throttle_duration_sec=2)
+        #     self.get_logger().warn(f'Não foi possível obter a transformação: {ex}', throttle_duration_sec=2)
 
 
-            return
+        #     return
 
 
 
@@ -246,7 +263,7 @@ class VectorFollowerNode(Node):
         # Extrai a rotação (quaternion) e a converte para yaw (theta)
 
 
-        self.theta = quaternion_to_euler_yaw(trans.transform.rotation)
+        #self.theta = quaternion_to_euler_yaw(trans.transform.rotation)
 
 
         

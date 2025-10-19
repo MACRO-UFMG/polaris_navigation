@@ -13,6 +13,8 @@
 #include "tf2_msgs/msg/tf_message.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "std_srvs/srv/trigger.hpp"
+#include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
+
 
 #include <memory>
 #include <vector>
@@ -90,8 +92,8 @@ private:
         speed_ref_ = declare_parameter<double>("speed_ref", 0.2);
         convergence_gain_ = declare_parameter<double>("convergence_gain", 5.0);
         
-        pose_topic_name_ = declare_parameter<std::string>("pose_topic_name", "tf");
-        pose_topic_type_ = declare_parameter<std::string>("pose_topic_type", "TFMessage");
+        pose_topic_name_ = declare_parameter<std::string>("pose_topic_name", "/amcl_pose");
+        pose_topic_type_ = declare_parameter<std::string>("pose_topic_type", "Odometry");
         path_topic_name_ = declare_parameter<std::string>("path_topic_name", "ref_path");
         cmd_vel_topic_name_ = declare_parameter<std::string>("cmd_vel_topic_name", "vec_to_follow");
         closest_obstacle_topic_name_ = declare_parameter<std::string>("closest_obstacle_topic_name", "closest_obstacle"); // Corrected typo
@@ -137,7 +139,12 @@ private:
         if (pose_topic_type_ == "TFMessage") {
             pose_sub_ = create_subscription<tf2_msgs::msg::TFMessage>(pose_topic_name_, 10, std::bind(&VectorFieldController::callbackTF, this, std::placeholders::_1));
         } else if (pose_topic_type_ == "Odometry") {
-            pose_sub_ = create_subscription<nav_msgs::msg::Odometry>(pose_topic_name_, 10, std::bind(&VectorFieldController::callbackOdometry, this, std::placeholders::_1));
+            //pose_sub_ = create_subscription<nav_msgs::msg::Odometry>(pose_topic_name_, 10, std::bind(&VectorFieldController::callbackOdometry, this, std::placeholders::_1));
+            pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+            pose_topic_name_, // É melhor usar a variável do parâmetro
+            10, 
+            std::bind(&VectorFieldController::callbackAmclPose, this, std::placeholders::_1) // <-- Correção aqui
+            );
         }
         
         path_sub_ = create_subscription<nav_msgs::msg::Path>(path_topic_name_, 10, std::bind(&VectorFieldController::callbackPath, this, std::placeholders::_1));
@@ -387,6 +394,18 @@ private:
                     transform.transform.rotation);
             }
         }
+    }
+
+    void callbackAmclPose(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
+        // Acessa a posição e a orientação diretamente da mensagem
+        // O caminho é: msg->pose.pose.position e msg->pose.pose.orientation
+        updateRobotPose(
+            msg->pose.pose.position.x,
+            msg->pose.pose.position.y,
+            msg->pose.pose.position.z,
+            msg->pose.pose.orientation
+        );
+        // std::cout << "Pose recebida do /amcl_pose" << std::endl;
     }
 
     void callbackOdometry(const nav_msgs::msg::Odometry::SharedPtr msg) {
