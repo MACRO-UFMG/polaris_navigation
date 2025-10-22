@@ -1,0 +1,15 @@
+/**:
+  ros__parameters:
+    # Specify path
+    pkg_path: "/home/baiao/workspaces/my_ws/src/espeleo_planning2"
+    path_number: 3
+
+    # Marker parameter
+    marker_scale: 0.03
+
+    # Reference frame
+    frame_id: "map"
+
+    # Topic names
+    publish_path_topic_name: "/espeleo/path"
+    visual_path_topic_name: "/visual_path"

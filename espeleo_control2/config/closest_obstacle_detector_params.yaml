@@ -1,0 +1,21 @@
+closest_obstacle_detector:
+  ros__parameters:
+    # Input/Output Topics
+    input_topic: "/scan"
+    output_topic: "closest_obstacle"
+    visualization_topic: "/obstacle_clusters"
+    
+    # Frame IDs
+    laser_frame: "scout_mini/base_link"          # Frame do laser (pode ser base_link, laser, etc)
+    world_frame: "map"               # Frame global (odom ou map)
+    
+    # DBSCAN Clustering Parameters
+    eps: 0.1                          # Raio de vizinhança (metros)
+    min_points: 3                     # Mínimo de pontos por cluster
+    
+    # Range Filtering
+    max_range: 5.0                   # Alcance máximo do laser (metros)
+    min_range: 0.1                    # Alcance mínimo (evita self-collision)
+    
+    # Visualization
+    publish_markers: true             # Habilitar visualização de clusters

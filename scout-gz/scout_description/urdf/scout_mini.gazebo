@@ -1,0 +1,109 @@
+<?xml version="1.0"?>
+
+<!--
+Reference:
+    [1] https://answers.ros.org/question/246914/four-wheeled-skid-steering-in-gazebo-and-ros-using-gazebo-ros-control/
+    [2] https://answers.ros.org/question/10119/gazebo-controller-for-skid-steering/
+    [3] https://answers.ros.org/question/9640/rotation-error-in-gazebo-simulation/
+    [4] https://www.youtube.com/watch?v=fuRAv6PDwdw
+-->
+
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+    <!-- <xacro:include filename="$(find scout_description)/urdf/scout_wheel.gazebo" /> -->
+
+    <!-- Additional definitions for simulation -->
+    <!-- <gazebo reference="base_link">
+        <material>Gazebo/Grey</material>
+    </gazebo> -->
+
+    <!-- Actuator configurations 
+    <xacro:scout_wheel_transmission wheel_prefix="front_right" />
+    <xacro:scout_wheel_transmission wheel_prefix="front_left" />
+    <xacro:scout_wheel_transmission wheel_prefix="rear_left" />
+    <xacro:scout_wheel_transmission wheel_prefix="rear_right" />-->
+
+    <!-- Controller configurations -->
+    <!-- <gazebo>
+        <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+            <robotNamespace>$(arg robot_namespace)</robotNamespace>
+        </plugin>
+    </gazebo> -->
+
+    <!-- kp spring constant, kd damping constant -->
+    <gazebo>
+        <mu1 value="1.0"/>
+        <mu2 value="0.9"/>
+        <kp value="10000000.0" />
+        <kd value="1.0" />
+        <fdir1 value="1 0 0"/>
+        <minDepth value="0.001" />
+        <maxContacts value="64"/>
+    </gazebo>
+
+    <gazebo reference="base_link">
+        <mu1>0.2</mu1>
+        <mu2>0.2</mu2>
+    </gazebo>
+
+    <gazebo reference="front_right_wheel_link">
+        <mu1>0.2</mu1>
+        <mu2>0.2</mu2>
+    </gazebo>
+
+    <gazebo reference="front_left_wheel_link">
+        <mu1>0.2</mu1>
+        <mu2>0.2</mu2>
+    </gazebo>
+
+    <gazebo reference="rear_left_wheel_link">
+        <mu1>0.2</mu1>
+        <mu2>0.2</mu2>
+    </gazebo>
+
+    <gazebo reference="rear_right_wheel_link">
+        <mu1>0.2</mu1>
+        <mu2>0.2</mu2>
+    </gazebo>
+
+    <gazebo>
+        <plugin filename="gz-sim-diff-drive-system"
+            name="gz::sim::systems::DiffDrive">
+            <!-- Remove <ros> tag. -->
+
+            <!-- wheels -->
+            <left_joint>front_left_wheel</left_joint>
+            <right_joint>front_right_wheel</right_joint>
+            <left_joint>rear_left_wheel</left_joint>
+            <right_joint>rear_right_wheel</right_joint>
+
+            <!-- kinematics -->
+            <wheel_separation>0.451</wheel_separation>
+            <wheel_radius>0.04</wheel_radius> <!-- computed from <wheel_diameter> in the original plugin-->
+
+            <!-- limits -->
+            <max_linear_acceleration>0.033</max_linear_acceleration> <!-- computed from <max_linear_acceleration> in the original plugin-->
+
+            <topic>cmd_vel</topic> <!-- from <commant_topic> -->
+
+            <odom_topic>odom</odom_topic> <!-- from <odometry_topic> -->
+            <frame_id>odom</frame_id> <!-- from <odometry_frame> -->
+            <child_frame_id>base_link</child_frame_id> <!-- from <robot_base_frame> -->
+            <odom_publisher_frequency>30</odom_publisher_frequency> <!-- from <update_rate>-->
+
+            <tf_topic>/tf</tf_topic> <!-- Short topic name for tf output -->
+
+        </plugin>
+    </gazebo>
+
+    <gazebo>
+        <plugin filename="gz-sim-joint-state-publisher-system"
+            name="gz::sim::systems::JointStatePublisher">
+            <topic>joint_states</topic> <!--from <ros><remapping> -->
+            <joint_name>front_left_wheel</joint_name>
+            <joint_name>front_right_wheel</joint_name>
+            <joint_name>rear_left_wheel</joint_name>
+            <joint_name>rear_right_wheel</joint_name>
+        </plugin>
+    </gazebo>
+
+</robot>

@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+
+<package format="3">
+  <!-- ============================================== -->
+  <!-- 1. Package Metadata Section -->
+  <!-- ============================================== -->
+  <name>espeleo_planning2</name>
+  <version>0.1.0</version>
+  <description>
+    Generates and publishes reference paths for CORO lab robots at UFMG.
+    Supports multiple path generation methods: waypoints, file input, and equations.
+  </description>
+  <url type="website">https://github.com/ITVRoC/espeleo_planning2</url>
+  <author email="baiaojfr@gmail.com">João Baião</author>
+  <maintainer email="baiaojfr@gmail.com">João Baião</maintainer>
+  <license>MIT</license>
+
+  <!-- ============================================== -->
+  <!-- 2. Build System Dependencies -->
+  <!-- ============================================== -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_auto</buildtool_depend>
+
+  <!-- ============================================== -->
+  <!-- 3. Core ROS Dependencies -->
+  <!-- ============================================== -->
+  <depend>rclcpp</depend>
+  <depend>geometry_msgs</depend>
+  <depend>visualization_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>std_msgs</depend>
+
+  <!-- ============================================== -->
+  <!-- 4. Math/Utility Dependencies -->
+  <!-- ============================================== -->
+  <depend>eigen3_cmake_module</depend>
+
+  <!-- ============================================== -->
+  <!-- 5. Execution Dependencies -->
+  <!-- ============================================== -->
+  <exec_depend>ros2launch</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+
+  <!-- ============================================== -->
+  <!-- 6. Testing Dependencies -->
+  <!-- ============================================== -->
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <!-- ============================================== -->
+  <!-- 7. Export Section -->
+  <!-- ============================================== -->
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

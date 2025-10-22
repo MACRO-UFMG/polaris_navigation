@@ -1,0 +1,38 @@
+/**:
+  ros__parameters:
+    # Curve number
+    path_number: 3
+    # 1 -> Ellipse
+    # 2 -> Eigth like curve
+    # 3 -> Square like curve
+    # 4 -> Sine curve
+
+    # Number of points to be sampled
+    number_of_samples: 200
+
+    # Stretch factor of the curve in the x direction
+    a: 1.6
+    # Stretch factor of the curve in the y direction
+    b: 0.8
+    # Rotation of the curve around the z axis (in dregrees)
+    phi: 0.0
+    # Displacement in the x direction (meters)
+    cx: 0.2
+    # Displacement in the y direction (meters)
+    cy: 0.0
+
+    #Flag to indicate if the path is closed or not
+    closed_path_flag: True
+    #Number of points to be inserted in between each pais of points of the received trajectory
+    insert_n_points: 5
+    #Number of points to use in the average filter (it is forced to be an odd number) - if 0 the path is not filtered
+    filter_path_n_average: 5
+
+    # Marker parameters
+    marker_scale: 0.03
+    marker_z_offset: 0.1
+    frame_id: "map"
+
+    # Topic names
+    publish_path_topic_name: "/espeleo/path"
+    visual_path_topic_name: "/visual_path"
