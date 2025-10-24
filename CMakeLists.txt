@@ -110,6 +110,7 @@ install(TARGETS
 
 install(PROGRAMS
   scripts/robot_simulator.py
+  src/feedback_linearization.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

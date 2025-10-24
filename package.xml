@@ -19,6 +19,8 @@
   <!-- ============================================== -->
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_auto</buildtool_depend>
+  <!-- Necessário para integrar o setup.py -->
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
 
   <!-- ============================================== -->
   <!-- 3. Core ROS Dependencies -->
@@ -39,10 +41,12 @@
   <depend>eigen3_cmake_module</depend>
   
   <!-- ============================================== -->
-  <!-- 5. Execution Dependencies -->
+  <!-- 5. Python & Execution Dependencies -->
   <!-- ============================================== -->
   <exec_depend>ros2launch</exec_depend>
   <exec_depend>rviz2</exec_depend>
+  <!-- Dependência de Python -->
+  <exec_depend>ament_python</exec_depend>
   <depend>rclpy</depend>
 
   <!-- ============================================== -->
@@ -55,6 +59,7 @@
   <!-- 7. Export Section -->
   <!-- ============================================== -->
   <export>
+    <!-- Importante: se o build misturar C++ e Python -->
     <build_type>ament_cmake</build_type>
   </export>
 </package>

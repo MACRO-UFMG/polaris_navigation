@@ -23,8 +23,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            # Isso cria o executável 'robot_simulator' a partir do seu script
             'robot_simulator = espeleo_control2.scripts.robot_simulator:main',
+            'feedback_linearization = espeleo_control2.feedback_linearization:main',
+            'vector_field_controller = espeleo_control2.vector_field_controller:main',
         ],
     },
 )
