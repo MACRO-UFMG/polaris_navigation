@@ -1,7 +1,7 @@
 /**:
   ros__parameters:
     # Specify path
-    pkg_path: "/home/baiao/workspaces/my_ws/src/espeleo_planning2"
+    pkg_path: "/home/baiao/workspaces/my_ws/src/polaris_planning"
     path_number: 3
 
     # Marker parameter

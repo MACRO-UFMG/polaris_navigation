@@ -5,14 +5,14 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
 
-    # Encontra o caminho para o pacote 'espeleo_control2'
-    espeleo_control2_share = get_package_share_directory('espeleo_control2')
+    # Encontra o caminho para o pacote 'polaris_control'
+    polaris_control_share = get_package_share_directory('polaris_control')
     
     # Define o caminho completo para o arquivo de configuração do RViz
-    rviz_config_file = os.path.join(espeleo_control2_share, 'config', 'demo_rviz.rviz')
+    rviz_config_file = os.path.join(polaris_control_share, 'config', 'demo_rviz.rviz')
 
     # --- Nó do RViz ---
-    # <node pkg="rviz2" exec="rviz2" name="rviz" output="screen" args="-d $(find-pkg-share espeleo_control2)/config/demo_rviz.rviz">
+    # <node pkg="rviz2" exec="rviz2" name="rviz" output="screen" args="-d $(find-pkg-share polaris_control)/config/demo_rviz.rviz">
     #     <param name="use_sim_time" value="false"/>
     # </node>
     rviz_node = Node(
@@ -25,30 +25,30 @@ def generate_launch_description():
     )
 
     # --- Nó do Controlador (Vector Field) ---
-    # <node pkg="espeleo_control2" exec="vector_field_controller" name="controller" output="screen">
+    # <node pkg="polaris_control" exec="vector_field_controller" name="controller" output="screen">
     # </node>
     controller_node = Node(
-        package='espeleo_control2',
+        package='polaris_control',
         executable='vector_field_controller',
         name='controller',
         output='screen'
     )
 
     # --- Nó do Planejador ---
-    # <node pkg="espeleo_planning2" exec="path_from_points" name="planner" output="screen">
+    # <node pkg="polaris_planning" exec="path_from_points" name="planner" output="screen">
     # </node>
     planner_node = Node(
-        package='espeleo_planning2',
+        package='polaris_planning',
         executable='path_from_points',
         name='planner',
         output='screen'
     )
 
     # --- Nós comentados (exemplo) ---
-    # <node pkg="espeleo_control2" exec="robot_simulator.py" name="robot_sim" output="screen">
+    # <node pkg="polaris_control" exec="robot_simulator.py" name="robot_sim" output="screen">
     # </node>
     # robot_sim_node = Node(
-    #     package='espeleo_control2',
+    #     package='polaris_control',
     #     executable='robot_simulator.py',
     #     name='robot_sim',
     #     output='screen'
@@ -81,10 +81,10 @@ def generate_launch_description():
     # )
 
     # --- Nó 'vector_follower' comentado ---
-    # <node pkg="espeleo_control2" exec="vector_follower_node" name="vector_follower" output="screen">
+    # <node pkg="polaris_control" exec="vector_follower_node" name="vector_follower" output="screen">
     # </node>
     # vector_follower_node = Node(
-    #     package='espeleo_control2',
+    #     package='polaris_control',
     #     executable='vector_follower_node',
     #     name='vector_follower',
     #     output='screen'

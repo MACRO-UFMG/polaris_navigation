@@ -9,18 +9,18 @@ def generate_launch_description():
     # Obter caminhos de pacotes e arquivos de configuração
     # ===================================================================
     
-    # $(find-pkg-share espeleo_control2)
-    espeleo_control2_share = get_package_share_directory('espeleo_control2')
+    # $(find-pkg-share polaris_control)
+    polaris_control_share = get_package_share_directory('polaris_control')
     
     # Caminho para o arquivo RViz
     rviz_config_file = os.path.join(
-        espeleo_control2_share, 'config', 'demo_rviz.rviz'
+        polaris_control_share, 'config', 'demo_rviz.rviz'
     )
     
     # Caminho para o arquivo de parâmetros do detector de obstáculos
-    # $(find-pkg-share espeleo_control2)/config/closest_obstacle_detector_params.yaml
+    # $(find-pkg-share polaris_control)/config/closest_obstacle_detector_params.yaml
     detector_params_file = os.path.join(
-        espeleo_control2_share, 'config', 'closest_obstacle_detector_params.yaml'
+        polaris_control_share, 'config', 'closest_obstacle_detector_params.yaml'
     )
 
     # ===================================================================
@@ -41,29 +41,29 @@ def generate_launch_description():
     )
 
     # --- Nó do Controlador (Vector Field) ---
-    # <node pkg="espeleo_control2" exec="vector_field_controller" ...>
+    # <node pkg="polaris_control" exec="vector_field_controller" ...>
     controller_node = Node(
-        package='espeleo_control2',
+        package='polaris_control',
         executable='vector_field_controller',
         name='controller',
         output='screen'
     )
 
     # --- Nó do Planejador ---
-    # <node pkg="espeleo_planning2" exec="path_from_points" ...>
+    # <node pkg="polaris_planning" exec="path_from_points" ...>
     planner_node = Node(
-        package='espeleo_planning2',
+        package='polaris_planning',
         executable='path_from_points',
         name='planner',
         output='screen'
     )
 
     # --- PERCEPTION - LaserScan Obstacle Detector ---
-    # <node pkg="espeleo_control2" exec="closest_obstacle_detector" ...>
+    # <node pkg="polaris_control" exec="closest_obstacle_detector" ...>
     #     <param from=".../closest_obstacle_detector_params.yaml"/>
     # </node>
     closest_obstacle_detector_node = Node(
-        package='espeleo_control2',
+        package='polaris_control',
         executable='closest_obstacle_detector',
         name='closest_obstacle_detector',
         output='screen',
@@ -72,9 +72,9 @@ def generate_launch_description():
     )
 
     # --- Nó do Simulador (Comentado) ---
-    # <node pkg="espeleo_control2" exec="robot_simulator.py" ...>
+    # <node pkg="polaris_control" exec="robot_simulator.py" ...>
     # robot_sim_node = Node(
-    #     package='espeleo_control2',
+    #     package='polaris_control',
     #     executable='robot_simulator.py',
     #     name='robot_sim',
     #     output='screen'
@@ -116,9 +116,9 @@ def generate_launch_description():
     # )
 
     # --- Nó 'vector_follower' (Comentado) ---
-    # <node pkg="espeleo_control2" exec="vector_follower_node" ...>
+    # <node pkg="polaris_control" exec="vector_follower_node" ...>
     # vector_follower_node = Node(
-    #     package='espeleo_control2',
+    #     package='polaris_control',
     #     executable='vector_follower_node',
     #     name='vector_follower',
     #     output='screen'

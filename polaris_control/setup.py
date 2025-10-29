@@ -1,6 +1,6 @@
 from setuptools import setup
 
-package_name = 'espeleo_control2'
+package_name = 'polaris_control'
 
 setup(
     name=package_name,
@@ -24,7 +24,7 @@ setup(
     entry_points={
         'console_scripts': [
             # Isso cria o executável 'robot_simulator' a partir do seu script
-            'robot_simulator = espeleo_control2.scripts.robot_simulator:main',
+            'robot_simulator = polaris_control.scripts.robot_simulator:main',
         ],
     },
 )

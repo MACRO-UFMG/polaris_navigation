@@ -4,12 +4,12 @@
   <!-- ============================================== -->
   <!-- 1. Package Metadata Section -->
   <!-- ============================================== -->
-  <name>espeleo_control2</name>
+  <name>polaris_control</name>
   <version>0.1.0</version>
   <description>
     Generates and publishes control input based on vector fields for CORO lab robots at UFMG.
   </description>
-  <url type="website">https://github.com/ITVRoC/espeleo_control2</url>
+  <url type="website">https://github.com/ITVRoC/polaris_control</url>
   <author email="baiaojfr@gmail.com">João Baião</author>
   <maintainer email="baiaojfr@gmail.com">João Baião</maintainer>
   <license>MIT</license>

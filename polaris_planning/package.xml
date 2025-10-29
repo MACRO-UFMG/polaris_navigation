@@ -5,13 +5,13 @@
   <!-- ============================================== -->
   <!-- 1. Package Metadata Section -->
   <!-- ============================================== -->
-  <name>espeleo_planning2</name>
+  <name>polaris_planning</name>
   <version>0.1.0</version>
   <description>
     Generates and publishes reference paths for CORO lab robots at UFMG.
     Supports multiple path generation methods: waypoints, file input, and equations.
   </description>
-  <url type="website">https://github.com/ITVRoC/espeleo_planning2</url>
+  <url type="website">https://github.com/ITVRoC/polaris_planning</url>
   <author email="baiaojfr@gmail.com">João Baião</author>
   <maintainer email="baiaojfr@gmail.com">João Baião</maintainer>
   <license>MIT</license>

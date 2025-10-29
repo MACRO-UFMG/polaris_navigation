@@ -26,7 +26,7 @@ class PathFromFile : public rclcpp::Node {
 public:
     PathFromFile() : Node("planner"), rate_(0.5) {
         // Declare parameters (default)
-        this->declare_parameter<std::string>("pkg_path", "/home/baiao/ros2_ws/src/espeleo_planning2");
+        this->declare_parameter<std::string>("pkg_path", "/home/baiao/ros2_ws/src/polaris_planning");
         this->declare_parameter<int>("path_number", 1);
         this->declare_parameter<double>("marker_scale", 0.03);
         this->declare_parameter<std::string>("frame_id", "map");

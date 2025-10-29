@@ -24,12 +24,12 @@ Path planning package for EspeleoRobo and other robotics platforms developed at 
 
 2. Clone this repository:
    ```bash
-   git clone https://github.com/ITVRoC/espeleo_planning2.git
+   git clone https://github.com/ITVRoC/polaris_planning.git
    ```
 3. Install dependencies
     ```bash
     cd ~/espeleo_ws
-    rosdep install -i --from-paths src/espeleo_planning2 --rosdistro $ROS_DISTRO -y
+    rosdep install -i --from-paths src/polaris_planning --rosdistro $ROS_DISTRO -y
     ```
     
 4. Build the package:
@@ -48,10 +48,10 @@ Path planning package for EspeleoRobo and other robotics platforms developed at 
 
 Launch the planner with:
 ```bash
-ros2 launch espeleo_planning2 launch_planner.xml
+ros2 launch polaris_planning launch_planner.xml
 ```
 	
-Select your desired planner by editing the launch file `your_workspace/src/espeleo_planning2/launch/launch_planner.xml`.
+Select your desired planner by editing the launch file `your_workspace/src/polaris_planning/launch/launch_planner.xml`.
 
 
 ## Planner types
