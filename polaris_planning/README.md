@@ -161,8 +161,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Contact:
 
-João Felipe Ribeiro Baião
-<baiaojfr@gmail.com>
+Thales Andrade Soares
+<thalesasoares02@gmail.com>
 Instituto Tecnológico Vale (ITV)
 Universidade Federal de Minas Gerais (UFMG)
 

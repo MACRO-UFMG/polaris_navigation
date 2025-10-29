@@ -12,8 +12,8 @@
     Supports multiple path generation methods: waypoints, file input, and equations.
   </description>
   <url type="website">https://github.com/ITVRoC/polaris_planning</url>
-  <author email="baiaojfr@gmail.com">João Baião</author>
-  <maintainer email="baiaojfr@gmail.com">João Baião</maintainer>
+  <author email="thalesasoares02@gmail.com">João Baião</author>
+  <maintainer email="thalesasoares02@gmail.com">João Baião</maintainer>
   <license>MIT</license>
 
   <!-- ============================================== -->

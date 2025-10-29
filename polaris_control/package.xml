@@ -10,8 +10,8 @@
     Generates and publishes control input based on vector fields for CORO lab robots at UFMG.
   </description>
   <url type="website">https://github.com/ITVRoC/polaris_control</url>
-  <author email="baiaojfr@gmail.com">João Baião</author>
-  <maintainer email="baiaojfr@gmail.com">João Baião</maintainer>
+  <author email="thalesasoares02@gmail.com">João Baião</author>
+  <maintainer email="thalesasoares02@gmail.com">João Baião</maintainer>
   <license>MIT</license>
 
   <!-- ============================================== -->

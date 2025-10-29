@@ -20,7 +20,7 @@ Universidade Federal de Minas Gerais (UFMG) - 2025
 Laboratório CORO
 Instituto Tecnologico Vale (ITV)
 Contact:
-João Felipe Ribeiro Baião, <baiaojfr@gmail.com>
+Thales Andrade Soares, <thalesasoares02@gmail.com>
 */
 
 using namespace std::chrono_literals;
