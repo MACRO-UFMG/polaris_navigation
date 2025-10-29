@@ -113,6 +113,11 @@ install(PROGRAMS
   DESTINATION lib/${PROJECT_NAME}
 )
 
+install(PROGRAMS
+  src/feedback_linearization.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 # Install launch and config files
 install(
   DIRECTORY 
