@@ -3,6 +3,9 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
 
+params_file = "scout_params.yaml"
+
+
 def generate_launch_description():
 
     # Encontra o caminho para o pacote 'polaris_control'
@@ -10,6 +13,8 @@ def generate_launch_description():
     
     # Define o caminho completo para o arquivo de configuração do RViz
     rviz_config_file = os.path.join(polaris_control_share, 'config', 'demo_rviz.rviz')
+
+    param_controller_file = os.path.join(polaris_control_share, 'config', params_file)
 
     # --- Nó do RViz ---
     # <node pkg="rviz2" exec="rviz2" name="rviz" output="screen" args="-d $(find-pkg-share polaris_control)/config/demo_rviz.rviz">
@@ -31,7 +36,8 @@ def generate_launch_description():
         package='polaris_control',
         executable='vector_field_controller',
         name='controller',
-        output='screen'
+        output='screen',
+        parameters=[param_controller_file]
     )
 
     # --- Nó do Planejador ---

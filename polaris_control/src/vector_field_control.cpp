@@ -58,6 +58,7 @@ private:
     std::string cmd_vel_topic_name_;
     std::string closest_obstacle_topic_name_;
     std::string is_path_closed_service_name_;
+    std::string tf_robot_pose_;
     
     // Path data
     std::vector<std::vector<double>> path_;
@@ -97,6 +98,7 @@ private:
         cmd_vel_topic_name_ = declare_parameter<std::string>("cmd_vel_topic_name", "vec_to_follow");
         closest_obstacle_topic_name_ = declare_parameter<std::string>("closest_obstacle_topic_name", "closest_obstacle"); // Corrected typo
         is_path_closed_service_name_ = declare_parameter<std::string>("is_path_closed_service_name", "is_path_closed");
+        tf_robot_pose_ = declare_parameter<std::string>("tf_robot_pose", "scout_mini/base_link");
 
         // Obstacle avoidance parameters from the paper
         flag_follow_obstacle_ = declare_parameter<bool>("flag_follow_obstacle", true); // IMPORTANT: Must be set to true to enable avoidance
@@ -385,7 +387,7 @@ private:
 
     void callbackTF(const tf2_msgs::msg::TFMessage::SharedPtr msg) {
         for (const auto& transform : msg->transforms) {
-            if (transform.child_frame_id == "scout_mini/base_link") {
+            if (transform.child_frame_id == tf_robot_pose_) {
                 updateRobotPose(
                     transform.transform.translation.x,
                     transform.transform.translation.y,

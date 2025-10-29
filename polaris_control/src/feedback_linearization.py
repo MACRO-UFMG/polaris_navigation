@@ -37,6 +37,9 @@ class VectorFollowerNode(Node):
         self.declare_parameter('stuck_timeout', 3.0)
         self.declare_parameter('escape_duration', 2.0)
         self.declare_parameter('noise_magnitude', 0.4)
+        self.declare_parameter('cmd_vel_topic', "/cmd_vel")
+        self.declare_parameter('vec_to_follow_topic', "/vec_to_follow")
+        self.declare_parameter('pose_topic', "/amcl_pose")
         
         self.distancia_ponto_controle = self.get_parameter('distancia_ponto_controle').get_parameter_value().double_value
         self.const_vel = self.get_parameter('const_vel').get_parameter_value().double_value
@@ -44,6 +47,9 @@ class VectorFollowerNode(Node):
         self.STUCK_TIMEOUT = self.get_parameter('stuck_timeout').get_parameter_value().double_value
         self.ESCAPE_DURATION = self.get_parameter('escape_duration').get_parameter_value().double_value
         self.NOISE_MAGNITUDE = self.get_parameter('noise_magnitude').get_parameter_value().double_value
+        self.cmd_vel_topic = self.get_parameter('cmd_vel_topic').get_parameter_value().string_value
+        self.vec_to_follow_topic = self.get_parameter('vec_to_follow_topic').get_parameter_value().string_value
+        self.pose_topic = self.get_parameter('pose_topic').get_parameter_value().string_value
 
         # ## TF2 Listener ##
         # O Buffer armazena as transformações recebidas e o Listener as preenche.
@@ -51,11 +57,11 @@ class VectorFollowerNode(Node):
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
 
         # ## Publishers e Subscribers ##
-        self.cmd_vel_publisher = self.create_publisher(Twist, '/cmd_vel', 10)
-        self.vector_subscriber = self.create_subscription(Vector3, '/vec_to_follow', self.vector_callback, 10)
+        self.cmd_vel_publisher = self.create_publisher(Twist, self.cmd_vel_topic, 10)
+        self.vector_subscriber = self.create_subscription(Vector3, self.vec_to_follow_topic, self.vector_callback, 10)
         self.pose_subscriber = self.create_subscription(
             PoseWithCovarianceStamped,
-            '/amcl_pose',
+            self.pose_topic,
             self.amcl_pose_callback,
             10)
 
@@ -92,7 +98,7 @@ class VectorFollowerNode(Node):
             return
 
         if self.theta is None:
-            self.get_logger().info("Aguardando a primeira pose do /amcl_pose...", throttle_duration_sec=5)
+            self.get_logger().info("Aguardando a primeira pose do pose_topic...", throttle_duration_sec=5)
             return
 
         # 1. Obter a transformação de 'odom' para 'base_footprint'

@@ -3,6 +3,8 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
 
+params_file = "scout_params.yaml"
+
 def generate_launch_description():
 
     # ===================================================================
@@ -22,6 +24,8 @@ def generate_launch_description():
     detector_params_file = os.path.join(
         polaris_control_share, 'config', 'closest_obstacle_detector_params.yaml'
     )
+
+    param_controller_file = os.path.join(polaris_control_share, 'config', params_file)
 
     # ===================================================================
     # Definições dos Nós
@@ -46,7 +50,8 @@ def generate_launch_description():
         package='polaris_control',
         executable='vector_field_controller',
         name='controller',
-        output='screen'
+        output='screen',
+        parameters=[param_controller_file]
     )
 
     # --- Nó do Planejador ---
