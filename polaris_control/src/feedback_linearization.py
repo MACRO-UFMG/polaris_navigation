@@ -6,8 +6,13 @@ import tf2_ros
 from tf2_ros import TransformException
 from geometry_msgs.msg import Vector3, Twist
 from geometry_msgs.msg import PoseWithCovarianceStamped
+from nav_msgs.msg import Odometry
 import numpy as np
 import math
+
+from rclpy.duration import Duration
+from rclpy.time import Time
+
 
 
 # Função auxiliar para normalizar um vetor
@@ -39,7 +44,10 @@ class VectorFollowerNode(Node):
         self.declare_parameter('noise_magnitude', 0.4)
         self.declare_parameter('cmd_vel_topic', "/cmd_vel")
         self.declare_parameter('vec_to_follow_topic', "/vec_to_follow")
-        self.declare_parameter('pose_topic', "/amcl_pose")
+        self.declare_parameter('pose_topic', "/Odometry")
+        self.declare_parameter('pose_topic_type', "TFMessage")
+        self.declare_parameter('tf_robot_pose', "fast_lio/base_link")
+        self.declare_parameter('tf_inertial_link', "fast_lio/odom")
         
         self.distancia_ponto_controle = self.get_parameter('distancia_ponto_controle').get_parameter_value().double_value
         self.const_vel = self.get_parameter('const_vel').get_parameter_value().double_value
@@ -50,20 +58,31 @@ class VectorFollowerNode(Node):
         self.cmd_vel_topic = self.get_parameter('cmd_vel_topic').get_parameter_value().string_value
         self.vec_to_follow_topic = self.get_parameter('vec_to_follow_topic').get_parameter_value().string_value
         self.pose_topic = self.get_parameter('pose_topic').get_parameter_value().string_value
+        self.pose_topic_type = self.get_parameter('pose_topic_type').get_parameter_value().string_value
+        self.tf_robot_pose = self.get_parameter('tf_robot_pose').get_parameter_value().string_value
+        self.tf_inertial_link = self.get_parameter('tf_inertial_link').get_parameter_value().string_value
 
         # ## TF2 Listener ##
         # O Buffer armazena as transformações recebidas e o Listener as preenche.
-        self.tf_buffer = tf2_ros.Buffer()
-        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+        # self.tf_buffer = tf2_ros.Buffer()
+        # self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
 
         # ## Publishers e Subscribers ##
         self.cmd_vel_publisher = self.create_publisher(Twist, self.cmd_vel_topic, 10)
         self.vector_subscriber = self.create_subscription(Vector3, self.vec_to_follow_topic, self.vector_callback, 10)
-        self.pose_subscriber = self.create_subscription(
-            PoseWithCovarianceStamped,
-            self.pose_topic,
-            self.amcl_pose_callback,
-            10)
+
+
+        if self.pose_topic_type == "TFMessage":
+            self.get_logger().info("Modo: Utilizando TF2 para orientação.")
+            self.tf_buffer = tf2_ros.Buffer()
+            self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+        elif self.pose_topic_type == "Odometry":
+            self.get_logger().info(f"Modo: Utilizando tópico {self.pose_topic} para orientação.")
+            self.pose_subscriber = self.create_subscription(
+                Odometry,
+                self.pose_topic,
+                self.Odometry_callback,
+                10)
 
         # ## Variáveis de Estado ##
         self.current_vector = None
@@ -90,6 +109,11 @@ class VectorFollowerNode(Node):
         # Converte o quaternion para o ângulo yaw (theta) e armazena
         self.theta = quaternion_to_euler_yaw(orientation_q)
         # self.get_logger().info("Entrei no callback...", throttle_duration_sec=5)
+    
+    def Odometry_callback(self, msg):
+        """Callback para o tópico /Odometry. Atualiza a orientação (theta) do robô."""
+        orientation_q = msg.pose.pose.orientation
+        self.theta = quaternion_to_euler_yaw(orientation_q)
 
     def control_loop(self):
         """Loop principal que calcula e publica os comandos de velocidade."""
@@ -97,8 +121,37 @@ class VectorFollowerNode(Node):
             self.get_logger().info("Aguardando vetor no tópico /vec_to_follow...", throttle_duration_sec=5)
             return
 
-        if self.theta is None:
-            self.get_logger().info("Aguardando a primeira pose do pose_topic...", throttle_duration_sec=5)
+        if self.pose_topic_type == "TFMessage":
+            t = Time()  # "latest available"
+
+            # Wait for TF to exist in the buffer (prevents "frame does not exist" spam)
+            if not self.tf_buffer.can_transform(
+                self.tf_inertial_link,
+                self.tf_robot_pose,
+                t,
+                timeout=Duration(seconds=1.0)
+            ):
+                self.get_logger().warn(
+                    f"Waiting TF: {self.tf_inertial_link} <- {self.tf_robot_pose}",
+                    throttle_duration_sec=2
+                )
+                return
+
+            try:
+                trans = self.tf_buffer.lookup_transform(
+                    self.tf_inertial_link,
+                    self.tf_robot_pose,
+                    t
+                )
+                self.theta = quaternion_to_euler_yaw(trans.transform.rotation)
+            except TransformException as ex:
+                self.get_logger().warn(f"Falha no TF: {ex}", throttle_duration_sec=2)
+                return
+
+
+        # 2. Verificações de segurança
+        if self.current_vector is None or self.theta is None:
+            self.get_logger().info("Aguardando dados (vetor/pose)...", throttle_duration_sec=5)
             return
 
         # 1. Obter a transformação de 'odom' para 'base_footprint'

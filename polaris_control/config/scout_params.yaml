@@ -5,9 +5,9 @@ controller:
     speed_ref: 0.2
     convergence_gain: 5.0
     
-    pose_topic_type: "Odometry"            # Options are Odometry or TFMessage
-    pose_topic_name: "/amcl_pose"          # If using a topic type pose_topic_type Odometry
-    tf_robot_pose: "scout_mini/base_link"  # If using a topic type pose_topic_type TFMessage
+    pose_topic_type: "Odometry"            # Options are Odometry or TFMessage Pose or PoseWithCovarience
+    pose_topic_name: "/Odometry"          # If using a topic type pose_topic_type Odometry
+    tf_robot_pose: "fast_lio/base_link"  # If using a topic type pose_topic_type TFMessage
 
     path_topic_name: "ref_path"                       # Topic where the path will be published
     cmd_vel_topic_name: "vec_to_follow"               # Topic where the vector from controller will be published
@@ -19,8 +19,8 @@ controller:
     # Obstacle avoidance parameters
     flag_follow_obstacle: true  # IMPORTANT: Must be set to true to enable avoidance
     lambda: 0.7                 # Gain to the deflection vector
-    switch_dist: 0.8            # Distance to change between fused vector field and totally avoiding obstacle
-    switch_dist_outer: 1.1      # Distance to change between fused vector field and totally follow reference path
+    switch_dist: 0.5            # Distance to change between fused vector field and totally avoiding obstacle
+    switch_dist_outer: 0.6      # Distance to change between fused vector field and totally follow reference path
 
 feedback_linearization:
   ros__parameters:
@@ -29,6 +29,10 @@ feedback_linearization:
     const_omega: 2.0                          # Max and Min W (angular velocity)
     cmd_vel_topic: "/cmd_vel"                 # Topic the script will publish the speed V and W for the robot
     vec_to_follow_topic: "/vec_to_follow"     # Topis the script will subscribe to follow (problably the same as cmd_vel_topic_name)
-    pose_topic: "/amcl_pose"                  # Odometry topic with the pose of the robot
+    pose_topic_type: "Odometry"            # Options are Odometry or TFMessage Pose or PoseWithCovarience
+    pose_topic: "/Odometry"                  # Odometry topic with the pose of the robot
+    tf_robot_pose: "fast_lio/base_link"  # If using a topic type pose_topic_type TFMessage
+    tf_inertial_link: "fast_lio/odom"  # If using a topic type pose_topic_type TFMessage
+
 
 

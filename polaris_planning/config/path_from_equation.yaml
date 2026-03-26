@@ -1,7 +1,7 @@
 /**:
   ros__parameters:
     # Curve number
-    path_number: 3
+    path_number: 2
     # 1 -> Ellipse
     # 2 -> Eigth like curve
     # 3 -> Square like curve
@@ -11,13 +11,13 @@
     number_of_samples: 200
 
     # Stretch factor of the curve in the x direction
-    a: 1.6
+    a: 1.0
     # Stretch factor of the curve in the y direction
-    b: 0.8
+    b: 0.6
     # Rotation of the curve around the z axis (in dregrees)
     phi: 0.0
     # Displacement in the x direction (meters)
-    cx: 0.2
+    cx: 0.0
     # Displacement in the y direction (meters)
     cy: 0.0
 

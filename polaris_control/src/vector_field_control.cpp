@@ -141,12 +141,20 @@ private:
             pose_sub_ = create_subscription<tf2_msgs::msg::TFMessage>(pose_topic_name_, 10, std::bind(&VectorFieldController::callbackTF, this, std::placeholders::_1));
         } else if (pose_topic_type_ == "Odometry") {
             //pose_sub_ = create_subscription<nav_msgs::msg::Odometry>(pose_topic_name_, 10, std::bind(&VectorFieldController::callbackOdometry, this, std::placeholders::_1));
+            pose_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
+            pose_topic_name_, // É melhor usar a variável do parâmetro
+            10, 
+            std::bind(&VectorFieldController::callbackOdometry, this, std::placeholders::_1) 
+            );
+        }else if (pose_topic_type_ == "PoseWithCovarience") {
+            //pose_sub_ = create_subscription<nav_msgs::msg::Odometry>(pose_topic_name_, 10, std::bind(&VectorFieldController::callbackOdometry, this, std::placeholders::_1));
             pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
             pose_topic_name_, // É melhor usar a variável do parâmetro
             10, 
-            std::bind(&VectorFieldController::callbackAmclPose, this, std::placeholders::_1) // <-- Correção aqui
+            std::bind(&VectorFieldController::callbackAmclPose, this, std::placeholders::_1) 
             );
         }
+        
         
         path_sub_ = create_subscription<nav_msgs::msg::Path>(path_topic_name_, 10, std::bind(&VectorFieldController::callbackPath, this, std::placeholders::_1));
         
