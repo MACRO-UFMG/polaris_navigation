@@ -150,9 +150,9 @@ class VectorFollowerNode(Node):
 
 
         # 2. Verificações de segurança
-        if self.current_vector is None or self.theta is None:
-            self.get_logger().info("Aguardando dados (vetor/pose)...", throttle_duration_sec=5)
-            return
+        # if self.current_vector is None or self.theta is None:
+        #     self.get_logger().info("Aguardando dados (vetor/pose)...", throttle_duration_sec=5)
+        #     return
 
         # 1. Obter a transformação de 'odom' para 'base_footprint'
         # try:

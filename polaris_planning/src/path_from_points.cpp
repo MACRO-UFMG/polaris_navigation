@@ -41,7 +41,8 @@ public:
         this->declare_parameter<std::string>("is_path_closed_service_name", "is_path_closed");
         this->declare_parameter<std::string>("visualization_topic_name", "visual_path");
         this->declare_parameter<std::string>("clicked_point_topic_name", "goal_pose");
-        this->declare_parameter<std::string>("pose_topic_name", "tf");
+        this->declare_parameter<std::string>("pose_topic_type", "TFMessage"); // TFMessage | Odometry | PoseWithCovarience
+        this->declare_parameter<std::string>("pose_topic_name", "/tf");
         this->declare_parameter<std::string>("start_service_name", "start_planner");
         this->declare_parameter<std::string>("clear_service_name", "clear_planner");
         this->declare_parameter<std::string>("remove_last_point_service_name", "remove_last_point");
@@ -55,6 +56,7 @@ public:
         is_path_closed_service_name_ = this->get_parameter("is_path_closed_service_name").as_string();
         visualization_topic_name_ = this->get_parameter("visualization_topic_name").as_string();
         clicked_point_topic_name_ = this->get_parameter("clicked_point_topic_name").as_string();
+        pose_topic_type_ = this->get_parameter("pose_topic_type").as_string();
         pose_topic_name_ = this->get_parameter("pose_topic_name").as_string();
         start_service_name_ = this->get_parameter("start_service_name").as_string();
         clear_service_name_ = this->get_parameter("clear_service_name").as_string();
@@ -66,6 +68,7 @@ public:
         RCLCPP_INFO(this->get_logger(), "path_topic_name: %s", path_topic_name_.c_str());
         RCLCPP_INFO(this->get_logger(), "visualization_topic_name: %s", visualization_topic_name_.c_str());
         RCLCPP_INFO(this->get_logger(), "clicked_point_topic_name: %s", clicked_point_topic_name_.c_str());
+        RCLCPP_INFO(this->get_logger(), "pose_topic_type: %s", pose_topic_type_.c_str());
         RCLCPP_INFO(this->get_logger(), "pose_topic_name: %s", pose_topic_name_.c_str());
         RCLCPP_INFO(this->get_logger(), "start_service_name: %s", start_service_name_.c_str());
         RCLCPP_INFO(this->get_logger(), "clear_service_name: %s", clear_service_name_.c_str());
@@ -81,15 +84,27 @@ public:
             clicked_point_topic_name_, 10,
             std::bind(&PathFromPoints::callback_new_point, this, std::placeholders::_1));
             
-        // pose_subscription_ = this->create_subscription<tf2_msgs::msg::TFMessage>(
-        //     pose_topic_name_, 10, 
-        //     std::bind(&PathFromPoints::callbackTF, this, std::placeholders::_1));
-        
-        pose_subscription_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
-            "/amcl_pose", 
-            10, 
-            std::bind(&PathFromPoints::callbackAmclPose, this, std::placeholders::_1)
-        );
+        if (pose_topic_type_ == "TFMessage") {
+            pose_sub_ = this->create_subscription<tf2_msgs::msg::TFMessage>(
+                pose_topic_name_, 10,
+                std::bind(&PathFromPoints::callbackTF, this, std::placeholders::_1));
+        } else if (pose_topic_type_ == "Odometry") {
+            pose_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
+                pose_topic_name_, 10,
+                std::bind(&PathFromPoints::callback_odom, this, std::placeholders::_1));
+        } else if (pose_topic_type_ == "PoseWithCovarience") {
+            pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+                pose_topic_name_, 10,
+                std::bind(&PathFromPoints::callbackAmclPose, this, std::placeholders::_1));
+        } else {
+            RCLCPP_WARN(
+                this->get_logger(),
+                "Invalid pose_topic_type '%s'. Falling back to TFMessage.",
+                pose_topic_type_.c_str());
+            pose_sub_ = this->create_subscription<tf2_msgs::msg::TFMessage>(
+                pose_topic_name_, 10,
+                std::bind(&PathFromPoints::callbackTF, this, std::placeholders::_1));
+        }
   
 
         // Initialize services
@@ -133,6 +148,7 @@ private:
     std::string is_path_closed_service_name_;
     std::string visualization_topic_name_;
     std::string clicked_point_topic_name_;
+    std::string pose_topic_type_;
     std::string pose_topic_name_;
     std::string start_service_name_;
     std::string clear_service_name_;
@@ -149,8 +165,7 @@ private:
     
     // Subscribers
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr clicked_point_subscription_;
-    //rclcpp::Subscription<tf2_msgs::msg::TFMessage>::SharedPtr pose_subscription_;
-    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_subscription_;
+    rclcpp::SubscriptionBase::SharedPtr pose_sub_;
 
     // Services
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr start_service_;
@@ -606,7 +621,7 @@ private:
     void callbackTF(const tf2_msgs::msg::TFMessage::SharedPtr msg) {
         
         for (const auto& transform : msg->transforms) {
-            if (transform.child_frame_id == "scout_mini/base_link") {
+            if (transform.child_frame_id == "body") {
                 updateRobotPose(
                     transform.transform.translation.x,
                     transform.transform.translation.y,

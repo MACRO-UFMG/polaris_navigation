@@ -73,6 +73,15 @@ def generate_launch_description():
         # mas 'arguments' no Python é uma lista de strings
         arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom']
     )
+
+    static_tf_map_to_camera_init = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_map_to_camera_init_publisher',
+        # Note que 'args' no XML é uma string única, 
+        # mas 'arguments' no Python é uma lista de strings
+        arguments=['0', '0', '0', '0', '0', '0', 'map', 'camera_init']
+    )
     
     # --- Outro TF estático comentado ---
     # <node pkg="tf2_ros"
@@ -104,7 +113,7 @@ def generate_launch_description():
         controller_node,
         planner_node,
         static_tf_map_to_odom,
-        
+        static_tf_map_to_camera_init,
         # Descomente as linhas abaixo se quiser adicionar os nós comentados
         # robot_sim_node,
         # static_tf_base_link,
