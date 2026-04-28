@@ -13,6 +13,7 @@ def generate_launch_description():
     
     # $(find-pkg-share polaris_control)
     polaris_control_share = get_package_share_directory('polaris_control')
+    polaris_planning_share = get_package_share_directory('polaris_planning')
     
     # Caminho para o arquivo RViz
     rviz_config_file = os.path.join(
@@ -26,6 +27,7 @@ def generate_launch_description():
     )
 
     param_controller_file = os.path.join(polaris_control_share, 'config', params_file)
+    planner_params_file = os.path.join(polaris_planning_share, 'config', 'path_from_points.yaml')
 
     # ===================================================================
     # Definições dos Nós
@@ -60,7 +62,8 @@ def generate_launch_description():
         package='polaris_planning',
         executable='path_from_points',
         name='planner',
-        output='screen'
+        output='screen',
+        parameters=[planner_params_file]
     )
 
     # --- PERCEPTION - LaserScan Obstacle Detector ---

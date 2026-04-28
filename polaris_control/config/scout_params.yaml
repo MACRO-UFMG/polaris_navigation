@@ -5,8 +5,9 @@ controller:
     speed_ref: 0.2
     convergence_gain: 5.0
     
-    pose_topic_type: "TFMessage"            # Options are Odometry or TFMessage Pose or PoseWithCovarience
-    pose_topic_name: "/tf"          # If using a topic type pose_topic_type Odometry
+    pose_topic_type: "PoseWithCovarianceStamped"     # Options are Odometry, TFMessage, or PoseWithCovarianceStamped
+    pose_topic_name: "/amcl_pose"          # If using a topic type pose_topic_type Odometry
+    tf_reference_frame: "map"  # If using a topic type pose_topic_type TFMessage
     tf_robot_pose: "body"  # If using a topic type pose_topic_type TFMessage
 
     path_topic_name: "ref_path"                       # Topic where the path will be published
@@ -21,23 +22,28 @@ controller:
     lambda: 0.7                 # Gain to the deflection vector
     switch_dist: 0.5            # Distance to change between fused vector field and totally avoiding obstacle
     switch_dist_outer: 0.6      # Distance to change between fused vector field and totally follow reference path
+    goal_tolerance: 0.15        # Stop distance for open paths
+    goal_hysteresis: 0.22       # Distance required to leave the reached-goal latch
+    slowdown_radius: 0.6        # Distance from goal where the controller starts slowing down
+    min_tracking_speed: 0.08    # Minimum commanded vector speed before entering goal_tolerance
 
-feedback_linearization:
-  ros__parameters:
+  feedback_linearization:
+    ros__parameters:
     distancia_ponto_controle: 0.15            # Distance between control point and the the robot pose
     const_vel: 0.3                            # Speed of the robot
     const_omega: 2.0                          # Max and Min W (angular velocity)
+    control_period: 0.05                      # Feedback linearization loop period
     cmd_vel_topic: "/cmd_vel"                 # Topic the script will publish the speed V and W for the robot
     vec_to_follow_topic: "/vec_to_follow"     # Topis the script will subscribe to follow (problably the same as cmd_vel_topic_name)
-    pose_topic_type: "TFMessage"            # Options are Odometry or TFMessage Pose or PoseWithCovarience
-    pose_topic: "/tf"                  # Odometry topic with the pose of the robot
+    pose_topic_type: "PoseWithCovarianceStamped"     # Options are Odometry, TFMessage, or PoseWithCovarianceStamped
+    pose_topic: "/amcl_pose"                  # Odometry topic with the pose of the robot
     tf_robot_pose: "body"  # If using a topic type pose_topic_type TFMessage
-    tf_inertial_link: "camera_init"  # If using a topic type pose_topic_type TFMessage
+    tf_inertial_link: "map"  # If using a topic type pose_topic_type TFMessage
 
 
 planner:
   ros__parameters:
     pose_topic_type: "TFMessage"
     pose_topic_name: "/tf"
-
-
+    tf_reference_frame: "map"
+    tf_robot_pose: "body"

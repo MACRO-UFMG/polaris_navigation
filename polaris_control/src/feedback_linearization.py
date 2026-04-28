@@ -42,6 +42,7 @@ class VectorFollowerNode(Node):
         self.declare_parameter('stuck_timeout', 3.0)
         self.declare_parameter('escape_duration', 2.0)
         self.declare_parameter('noise_magnitude', 0.4)
+        self.declare_parameter('control_period', 0.05)
         self.declare_parameter('cmd_vel_topic', "/cmd_vel")
         self.declare_parameter('vec_to_follow_topic', "/vec_to_follow")
         self.declare_parameter('pose_topic', "/Odometry")
@@ -55,6 +56,10 @@ class VectorFollowerNode(Node):
         self.STUCK_TIMEOUT = self.get_parameter('stuck_timeout').get_parameter_value().double_value
         self.ESCAPE_DURATION = self.get_parameter('escape_duration').get_parameter_value().double_value
         self.NOISE_MAGNITUDE = self.get_parameter('noise_magnitude').get_parameter_value().double_value
+        self.timer_period = self.get_parameter('control_period').get_parameter_value().double_value
+        if self.timer_period <= 0.0:
+            self.get_logger().warn("control_period must be positive; using 0.05s.")
+            self.timer_period = 0.05
         self.cmd_vel_topic = self.get_parameter('cmd_vel_topic').get_parameter_value().string_value
         self.vec_to_follow_topic = self.get_parameter('vec_to_follow_topic').get_parameter_value().string_value
         self.pose_topic = self.get_parameter('pose_topic').get_parameter_value().string_value
@@ -83,6 +88,21 @@ class VectorFollowerNode(Node):
                 self.pose_topic,
                 self.Odometry_callback,
                 10)
+        elif self.pose_topic_type in ("PoseWithCovarience", "PoseWithCovarianceStamped"):
+            self.get_logger().info(
+                f"Modo: Utilizando PoseWithCovarianceStamped em {self.pose_topic} para orientação."
+            )
+            self.pose_subscriber = self.create_subscription(
+                PoseWithCovarianceStamped,
+                self.pose_topic,
+                self.amcl_pose_callback,
+                10,
+            )
+        else:
+            self.get_logger().error(
+                f"pose_topic_type inválido: '{self.pose_topic_type}'. "
+                "Use TFMessage, Odometry ou PoseWithCovarianceStamped."
+            )
 
         # ## Variáveis de Estado ##
         self.current_vector = None
@@ -93,17 +113,18 @@ class VectorFollowerNode(Node):
         self.escape_vector = np.array([0.0, 0.0])
         
         # ## Timer do Loop de Controle ##
-        self.timer_period = 0.5  # 50Hz
         self.timer = self.create_timer(self.timer_period, self.control_loop)
         
-        self.get_logger().info("Nó Vector Follower (usando TF) iniciado com sucesso! ✅")
+        self.get_logger().info(
+            f"Nó feedback_linearization iniciado (pose: {self.pose_topic_type}, period: {self.timer_period:.3f}s)."
+        )
 
     def vector_callback(self, msg):
         """Armazena o vetor de velocidade desejada mais recente."""
         self.current_vector = msg
 
     def amcl_pose_callback(self, msg):
-        """Callback para o tópico /amcl_pose. Atualiza a orientação (theta) do robô."""
+        """Callback para PoseWithCovarianceStamped (ex.: /amcl_pose). Atualiza theta (yaw)."""
         # Extrai o quaternion da mensagem de pose
         orientation_q = msg.pose.pose.orientation
         # Converte o quaternion para o ângulo yaw (theta) e armazena
@@ -148,11 +169,11 @@ class VectorFollowerNode(Node):
                 self.get_logger().warn(f"Falha no TF: {ex}", throttle_duration_sec=2)
                 return
 
-
-        # 2. Verificações de segurança
-        # if self.current_vector is None or self.theta is None:
-        #     self.get_logger().info("Aguardando dados (vetor/pose)...", throttle_duration_sec=5)
-        #     return
+        if self.theta is None:
+            self.get_logger().info(
+                "Aguardando orientação (pose/TF)...", throttle_duration_sec=5
+            )
+            return
 
         # 1. Obter a transformação de 'odom' para 'base_footprint'
         # try:
