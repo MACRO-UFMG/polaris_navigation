@@ -47,8 +47,8 @@ class VectorFollowerNode(Node):
         self.declare_parameter('vec_to_follow_topic', "/vec_to_follow")
         self.declare_parameter('pose_topic', "/Odometry")
         self.declare_parameter('pose_topic_type', "TFMessage")
-        self.declare_parameter('tf_robot_pose', "fast_lio/base_link")
-        self.declare_parameter('tf_inertial_link', "fast_lio/odom")
+        self.declare_parameter('tf_robot_pose', "body")
+        self.declare_parameter('tf_inertial_link', "camera_init")
         
         self.distancia_ponto_controle = self.get_parameter('distancia_ponto_controle').get_parameter_value().double_value
         self.const_vel = self.get_parameter('const_vel').get_parameter_value().double_value

@@ -6,7 +6,7 @@
     max_point_distance: 0.2 # Maximum allowed distance between points
 
     # Topic names
-    path_topic_name: "/espeleo/path"
+    path_topic_name: "/ref/path"
     visualization_topic_name: "/visual_path"
     clicked_point_topic_name: "/goal_pose"
     pose_topic_type: "TFMessage"
