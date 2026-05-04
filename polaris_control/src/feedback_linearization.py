@@ -90,7 +90,8 @@ class VectorFollowerNode(Node):
                 10)
         elif self.pose_topic_type in ("PoseWithCovarience", "PoseWithCovarianceStamped"):
             self.get_logger().info(
-                f"Modo: Utilizando PoseWithCovarianceStamped em {self.pose_topic} para orientação."
+                f"Modo: PoseWithCovarianceStamped em {self.pose_topic} + TF "
+                f"({self.tf_inertial_link} <- {self.tf_robot_pose}) para orientação contínua."
             )
             self.pose_subscriber = self.create_subscription(
                 PoseWithCovarianceStamped,
@@ -98,6 +99,11 @@ class VectorFollowerNode(Node):
                 self.amcl_pose_callback,
                 10,
             )
+            # AMCL often stops publishing while the robot is still; the map->base TF still
+            # updates from map->odom × odom->base so we read yaw every control cycle like
+            # vector_field_control does.
+            self.tf_buffer = tf2_ros.Buffer()
+            self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
         else:
             self.get_logger().error(
                 f"pose_topic_type inválido: '{self.pose_topic_type}'. "
@@ -136,6 +142,27 @@ class VectorFollowerNode(Node):
         orientation_q = msg.pose.pose.orientation
         self.theta = quaternion_to_euler_yaw(orientation_q)
 
+    def _update_theta_from_tf(self) -> bool:
+        """Atualiza self.theta a partir do TF mais recente. Retorna True se obteve transform."""
+        t = Time()
+        try:
+            if not self.tf_buffer.can_transform(
+                self.tf_inertial_link,
+                self.tf_robot_pose,
+                t,
+                timeout=Duration(seconds=0.05),
+            ):
+                return False
+            trans = self.tf_buffer.lookup_transform(
+                self.tf_inertial_link,
+                self.tf_robot_pose,
+                t,
+            )
+            self.theta = quaternion_to_euler_yaw(trans.transform.rotation)
+            return True
+        except TransformException:
+            return False
+
     def control_loop(self):
         """Loop principal que calcula e publica os comandos de velocidade."""
         if self.current_vector is None:
@@ -143,35 +170,21 @@ class VectorFollowerNode(Node):
             return
 
         if self.pose_topic_type == "TFMessage":
-            t = Time()  # "latest available"
-
-            # Wait for TF to exist in the buffer (prevents "frame does not exist" spam)
-            if not self.tf_buffer.can_transform(
-                self.tf_inertial_link,
-                self.tf_robot_pose,
-                t,
-                timeout=Duration(seconds=1.0)
-            ):
+            if not self._update_theta_from_tf():
                 self.get_logger().warn(
                     f"Waiting TF: {self.tf_inertial_link} <- {self.tf_robot_pose}",
-                    throttle_duration_sec=2
+                    throttle_duration_sec=2,
                 )
                 return
 
-            try:
-                trans = self.tf_buffer.lookup_transform(
-                    self.tf_inertial_link,
-                    self.tf_robot_pose,
-                    t
-                )
-                self.theta = quaternion_to_euler_yaw(trans.transform.rotation)
-            except TransformException as ex:
-                self.get_logger().warn(f"Falha no TF: {ex}", throttle_duration_sec=2)
-                return
+        elif self.pose_topic_type in ("PoseWithCovarience", "PoseWithCovarianceStamped"):
+            # TF em cada tick; /amcl_pose só preenche self.theta se o TF ainda não existir.
+            self._update_theta_from_tf()
 
         if self.theta is None:
             self.get_logger().info(
-                "Aguardando orientação (pose/TF)...", throttle_duration_sec=5
+                "Aguardando orientação (TF / pose / odometry)...",
+                throttle_duration_sec=5,
             )
             return
 

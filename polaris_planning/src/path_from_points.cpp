@@ -687,7 +687,7 @@ private:
                     transform.transform.translation.y,
                     transform.transform.translation.z,
                     transform.transform.rotation);
-                    // std::cout << "Recebeu pose" << std::endl; // Comentado para não poluir o terminal
+                    // std::cout << "Recebeu pose" << std::endl;
             }
         }
     }
