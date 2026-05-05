@@ -3,7 +3,7 @@
 controller:
   ros__parameters:
     speed_ref: 0.2
-    convergence_gain: 5.0
+    convergence_gain: 4.0
 
     pose_topic_type: "PoseWithCovarianceStamped"
     pose_topic_name: "/amcl_pose"
