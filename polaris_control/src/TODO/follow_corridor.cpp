@@ -9,37 +9,38 @@
 #include <cmath>
 #include <fstream>
 #include <limits>
+#include <memory>
+#include <string>
 
 /*
 Universidade Federal de Minas Gerais (UFMG) - 2025
 Laboratório CORO
 Instituto Tecnologico Vale (ITV)
 Contact:
-João Felipe Ribeiro Baião, <baiaojfr@gmail.com>
+Thales Andrade Soares, <thalesasoares02@gmail.com>
 */
 
 using namespace std::chrono_literals;
 
-class WallFollower : public rclcpp::Node
+class CorridorFollower : public rclcpp::Node
 {
 public:
-    WallFollower() : Node("wall_follower")
+    CorridorFollower() : Node("corridor_follower")
     {
         // Initialize parameters with default values
         this->declare_parameter<double>("vr", 1.0);
         this->declare_parameter<double>("kf", 1.0);
-        this->declare_parameter<double>("epsilon", 1.0);
         this->declare_parameter<double>("d", 0.2);
-        this->declare_parameter<bool>("invert_motion", false);
-        this->declare_parameter<bool>("keep_wall_right", true);
+        this->declare_parameter<bool>("invert_motion_flag", false);
         this->declare_parameter<bool>("log_gt_flag", false);
+        this->declare_parameter<int>("center", 120);
         
         // Topic names
         this->declare_parameter<std::string>("cmd_vel_topic", "cmd_vel");
         this->declare_parameter<std::string>("scan_topic", "scan");
         this->declare_parameter<std::string>("laser_frame_id", "base_laser_link");
         this->declare_parameter<std::string>("gt_topic", "");
-        this->declare_parameter<std::string>("log_path", "");
+        this->declare_parameter<std::string>("log_path_name", "");
         
         // Load parameters
         load_parameters();
@@ -47,10 +48,10 @@ public:
         // Initialize ROS components
         initialize_ros_components();
         
-        RCLCPP_INFO(this->get_logger(), "Wall follower node initialized");
+        RCLCPP_INFO(this->get_logger(), "Corridor follower node initialized");
     }
 
-    ~WallFollower()
+    ~CorridorFollower()
     {
         if (file_handle_.is_open())
         {
@@ -62,11 +63,10 @@ private:
     // Parameters
     double vr_;
     double kf_;
-    double epsilon_;
     double d_;
     bool invert_motion_;
-    bool keep_wall_right_;
     bool log_gt_flag_;
+    int center_;
     
     // Topic names
     std::string cmd_vel_topic_;
@@ -76,17 +76,22 @@ private:
     std::string log_path_;
     
     // State variables
-    double delta_m_ = std::numeric_limits<double>::infinity();
-    double phi_m_ = 0.0;
+    double delta_1_ = std::numeric_limits<double>::infinity();
+    double phi_1_ = 0.0;
+    double delta_2_ = std::numeric_limits<double>::infinity();
+    double phi_2_ = 0.0;
     bool new_data_ = false;
+    int no_data_counter_ = 0;
     std::ofstream file_handle_;
     
     // ROS components
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
-    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
+    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_1_pub_;
+    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_2_pub_;
     rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr gt_sub_;
-    visualization_msgs::msg::Marker closest_point_marker_;
+    visualization_msgs::msg::Marker marker_1_;
+    visualization_msgs::msg::Marker marker_2_;
     rclcpp::TimerBase::SharedPtr timer_;
 
     void load_parameters()
@@ -95,11 +100,10 @@ private:
         {
             vr_ = this->get_parameter("vr").as_double();
             kf_ = this->get_parameter("kf").as_double();
-            epsilon_ = this->get_parameter("epsilon").as_double();
             d_ = this->get_parameter("d").as_double();
-            invert_motion_ = this->get_parameter("invert_motion").as_bool();
-            keep_wall_right_ = this->get_parameter("keep_wall_right").as_bool();
+            invert_motion_ = this->get_parameter("invert_motion_flag").as_bool();
             log_gt_flag_ = this->get_parameter("log_gt_flag").as_bool();
+            center_ = this->get_parameter("center").as_int();
             
             // Topic parameters
             cmd_vel_topic_ = this->get_parameter("cmd_vel_topic").as_string();
@@ -110,7 +114,7 @@ private:
             if (log_gt_flag_)
             {
                 gt_topic_ = this->get_parameter("gt_topic").as_string();
-                log_path_ = this->get_parameter("log_path").as_string();
+                log_path_ = this->get_parameter("log_path_name").as_string();
             }
             
             print_parameters();
@@ -127,14 +131,13 @@ private:
         RCLCPP_INFO(this->get_logger(), "Parameters loaded:");
         RCLCPP_INFO(this->get_logger(), "vr: %f", vr_);
         RCLCPP_INFO(this->get_logger(), "kf: %f", kf_);
-        RCLCPP_INFO(this->get_logger(), "epsilon: %f", epsilon_);
         RCLCPP_INFO(this->get_logger(), "d: %f", d_);
         RCLCPP_INFO(this->get_logger(), "invert_motion: %d", invert_motion_);
-        RCLCPP_INFO(this->get_logger(), "keep_wall_right: %d", keep_wall_right_);
+        RCLCPP_INFO(this->get_logger(), "log_gt_flag: %d", log_gt_flag_);
+        RCLCPP_INFO(this->get_logger(), "center: %d", center_);
         RCLCPP_INFO(this->get_logger(), "cmd_vel_topic: %s", cmd_vel_topic_.c_str());
         RCLCPP_INFO(this->get_logger(), "scan_topic: %s", scan_topic_.c_str());
         RCLCPP_INFO(this->get_logger(), "laser_frame_id: %s", laser_frame_id_.c_str());
-        RCLCPP_INFO(this->get_logger(), "log_gt_flag: %d", log_gt_flag_);
         
         if (log_gt_flag_)
         {
@@ -147,27 +150,29 @@ private:
     {
         // Publishers
         cmd_vel_pub_ = this->create_publisher<geometry_msgs::msg::Twist>(cmd_vel_topic_, 1);
-        marker_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("closest_laser_marker", 1);
+        marker_1_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("close_marker_1", 1);
+        marker_2_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("close_marker_2", 1);
         
         // Subscribers
         scan_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
-            scan_topic_, 1, std::bind(&WallFollower::laser_callback, this, std::placeholders::_1));
+            scan_topic_, 1, std::bind(&CorridorFollower::laser_callback, this, std::placeholders::_1));
             
         if (log_gt_flag_)
         {
             gt_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-                gt_topic_, 1, std::bind(&WallFollower::ground_truth_callback, this, std::placeholders::_1));
+                gt_topic_, 1, std::bind(&CorridorFollower::ground_truth_callback, this, std::placeholders::_1));
             file_handle_.open(log_path_);
         }
         
-        // Initialize marker for visualization
-        closest_point_marker_ = create_marker();
+        // Initialize markers
+        marker_1_ = create_marker(0.0, 1.0, 0.0); // Green for right
+        marker_2_ = create_marker(0.0, 0.0, 1.0); // Blue for left
         
-        // Create timer for control loop
-        timer_ = this->create_wall_timer(100ms, std::bind(&WallFollower::control_loop, this));
+        // Create timer for control loop (10Hz)
+        timer_ = this->create_wall_timer(100ms, std::bind(&CorridorFollower::control_loop, this));
     }
 
-    visualization_msgs::msg::Marker create_marker()
+    visualization_msgs::msg::Marker create_marker(float r, float g, float b)
     {
         visualization_msgs::msg::Marker marker;
         marker.header.frame_id = laser_frame_id_;
@@ -177,9 +182,9 @@ private:
         marker.scale.y = 3 * d_;
         marker.scale.z = 3 * d_;
         marker.color.a = 1.0;
-        marker.color.r = 0.0;
-        marker.color.g = 0.0;
-        marker.color.b = 1.0;
+        marker.color.r = r;
+        marker.color.g = g;
+        marker.color.b = b;
         marker.pose.orientation.w = 1.0;
         return marker;
     }
@@ -207,40 +212,65 @@ private:
 
     void laser_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg)
     {
-        // Find closest valid measurement
-        double min_dist = std::numeric_limits<double>::infinity();
-        int min_idx = -1;
+        const auto& ranges = msg->ranges;
         
-        for (size_t i = 0; i < msg->ranges.size(); ++i)
+        // Find closest valid measurement on right side (first half)
+        delta_1_ = std::numeric_limits<double>::infinity();
+        int k1 = -1;
+        for (int k = 0; k < center_; k++)
         {
-            double dist = msg->ranges[i];
-            if (dist > 0.10 && dist < min_dist)
+            if (ranges[k] > 0.10 && ranges[k] < delta_1_)
             {
-                min_dist = dist;
-                min_idx = i;
+                delta_1_ = ranges[k];
+                k1 = k;
             }
         }
         
-        if (min_idx != -1)
+        // Find closest valid measurement on left side (second half)
+        delta_2_ = std::numeric_limits<double>::infinity();
+        int k2 = -1;
+        for (int k = center_; k < static_cast<int>(ranges.size()); k++)
         {
-            delta_m_ = min_dist;
-            phi_m_ = msg->angle_min + min_idx * msg->angle_increment;
+            if (ranges[k] > 0.10 && ranges[k] < delta_2_)
+            {
+                delta_2_ = ranges[k];
+                k2 = k;
+            }
+        }
+        
+        // Update center point between the two closest points
+        if (k1 != -1 && k2 != -1)
+        {
+            center_ = (k1 + k2) / 2;
+            RCLCPP_DEBUG(this->get_logger(), "Center index: %d", center_);
+            
+            // Compute angles for both points
+            phi_1_ = msg->angle_min + k1 * msg->angle_increment;
+            phi_2_ = msg->angle_min + k2 * msg->angle_increment;
             new_data_ = true;
         }
     }
 
     std::pair<double, double> compute_control_command()
     {
-        double G = (2/M_PI) * atan2(kf_ * (delta_m_ - epsilon_), 1);
-        double H = sqrt(1 - G*G);
+        double alpha = (phi_2_ - phi_1_ - M_PI) / 2.0;
+        double phi_D = phi_1_ + alpha;
+        double phi_T = phi_1_ + alpha + M_PI / 2.0;
         
-        if (!keep_wall_right_)
-        {
-            H = -H;
-        }
+        // Compute corridor width
+        double D = (delta_2_ - delta_1_) / (2 * cos(alpha));
         
-        double v = vr_ * (cos(phi_m_)*G - sin(phi_m_)*H);
-        double omega = vr_ * (sin(phi_m_)*G/d_ + cos(phi_m_)*H/d_);
+        // Compute vector field components
+        double G = -(2 / M_PI) * atan2(kf_ * D, 1);
+        double H = sqrt(1 - G * G);
+        
+        // Compute velocity components
+        double vx = G * cos(phi_D) + H * cos(phi_T);
+        double vy = G * sin(phi_D) + H * sin(phi_T);
+        
+        // Final commands
+        double v = vr_ * vx;
+        double omega = vr_ * vy / d_;
         
         return {v, omega};
     }
@@ -251,18 +281,36 @@ private:
         
         if (new_data_)
         {
-            // Update marker position
-            closest_point_marker_.header.stamp = this->now();
-            closest_point_marker_.pose.position.x = delta_m_ * cos(phi_m_);
-            closest_point_marker_.pose.position.y = delta_m_ * sin(phi_m_);
-            closest_point_marker_.pose.position.z = d_;
-            marker_pub_->publish(closest_point_marker_);
-            
             // Compute and apply control command
             auto [v, omega] = compute_control_command();
+            
+            // Update markers
+            marker_1_.header.stamp = this->now();
+            marker_1_.pose.position.x = delta_1_ * cos(phi_1_);
+            marker_1_.pose.position.y = delta_1_ * sin(phi_1_);
+            marker_1_pub_->publish(marker_1_);
+            
+            marker_2_.header.stamp = this->now();
+            marker_2_.pose.position.x = delta_2_ * cos(phi_2_);
+            marker_2_.pose.position.y = delta_2_ * sin(phi_2_);
+            marker_2_pub_->publish(marker_2_);
+            
+            // Apply motion inversion if needed
             vel.linear.x = invert_motion_ ? -v : v;
             vel.angular.z = omega;
+            
             new_data_ = false;
+            no_data_counter_ = 0;
+        }
+        else
+        {
+            no_data_counter_++;
+            // Stop if no laser data for 1 second
+            if (no_data_counter_ > 10)
+            {
+                vel.linear.x = 0.0;
+                vel.angular.z = 0.0;
+            }
         }
         
         cmd_vel_pub_->publish(vel);
@@ -272,7 +320,7 @@ private:
 int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);
-    auto node = std::make_shared<WallFollower>();
+    auto node = std::make_shared<CorridorFollower>();
     rclcpp::spin(node);
     rclcpp::shutdown();
     return 0;

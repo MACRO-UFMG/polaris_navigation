@@ -1,0 +1,47 @@
+# Params file to vector_field_control
+
+controller:
+  ros__parameters:
+    speed_ref: 0.2
+    convergence_gain: 4.0
+
+    pose_topic_type: "PoseWithCovarianceStamped"
+    pose_topic_name: "/amcl_pose"
+    tf_reference_frame: "map"
+    tf_robot_pose: "body"
+
+    path_topic_name: "ref_path"
+    cmd_vel_topic_name: "vec_to_follow"
+    closest_obstacle_topic_name: "closest_obstacle"
+    is_path_closed_service_name: "is_path_closed"
+
+    flag_follow_obstacle: true
+    lambda: 0.7
+    switch_dist: 0.5
+    switch_dist_outer: 0.6
+    goal_tolerance: 0.15
+    goal_hysteresis: 0.22
+    slowdown_radius: 0.6
+    min_tracking_speed: 0.08
+
+
+feedback_linearization:
+  ros__parameters:
+    distancia_ponto_controle: 0.15
+    const_vel: 0.3
+    const_omega: 2.0
+    control_period: 0.05
+    cmd_vel_topic: "/cmd_vel"
+    vec_to_follow_topic: "/vec_to_follow"
+    pose_topic_type: "PoseWithCovarianceStamped"
+    pose_topic: "/amcl_pose"
+    tf_robot_pose: "body"
+    tf_inertial_link: "map"
+
+
+planner:
+  ros__parameters:
+    pose_topic_type: "TFMessage"
+    pose_topic_name: "/tf"
+    tf_reference_frame: "map"
+    tf_robot_pose: "body"

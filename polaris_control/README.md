@@ -3,7 +3,7 @@
 ![ROS 2](https://img.shields.io/badge/ROS%202-Jazzy-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-Robot controller package based on vector fields. It is designed to guide a robot along a reference path sent by the [planner](https://github.com/ITVRoC/espeleo_planning2) while reactively avoiding obstacles. The package also includes a simple simulation node to test and demonstrate the controller.
+Robot controller package based on vector fields. It is designed to guide a robot along a reference path sent by the [planner](https://github.com/ITVRoC/polaris_planning) while reactively avoiding obstacles. The package also includes a simple simulation node to test and demonstrate the controller.
 
 The obstacle avoidance implementation is based on the paper: [Vector field for curve tracking with obstacle avoidance](https://ieeexplore.ieee.org/document/9992435) by Nunes, A. H. D., et al. (2022).
 
@@ -24,12 +24,12 @@ The obstacle avoidance implementation is based on the paper: [Vector field for c
 
 2.  Clone this repository:
     ```bash
-    git clone [https://github.com/ITVRoC/espeleo_control2.git](https://github.com/ITVRoC/espeleo_control2.git)
+    git clone [https://github.com/ITVRoC/polaris_control.git](https://github.com/ITVRoC/polaris_control.git)
     ```
 3. Install dependencies
     ```bash
     cd ~/espeleo_ws
-    rosdep install -i --from-paths src/espeleo_control2 --rosdistro $ROS_DISTRO -y
+    rosdep install -i --from-paths src/polaris_control --rosdistro $ROS_DISTRO -y
     ```
     
 4.  Build the package:
@@ -45,10 +45,10 @@ The obstacle avoidance implementation is based on the paper: [Vector field for c
 
 ## How to Use
 
-To run a full demonstration including the controller, path planner (you must have the [planner](https://github.com/ITVRoC/espeleo_planning2) compiled in the same workspace), robot simulator, and RViz2, use the provided launch file:
+To run a full demonstration including the controller, path planner (you must have the [planner](https://github.com/ITVRoC/polaris_planning) compiled in the same workspace), robot simulator, and RViz2, use the provided launch file:
 
 ```bash
-ros2 launch espeleo_control2 demo.xml
+ros2 launch polaris_control demo.xml
 ```
 
 This will start all the necessary nodes, and you will be able to see the simulated robot (red sphere) following a path (white spheres) and avoiding an obstacle (blue sphere).
@@ -106,7 +106,7 @@ This is a simple Python node that simulates a robot and an obstacle for testing 
 
 ## Package Nodes (TODO)
 
-Arquivos de referência com alguns métodos já implementados estão em espeleo_control2/src/TODO
+Arquivos de referência com alguns métodos já implementados estão em polaris_control/src/TODO
 
 ### 3. `Closest Obstacle`
 
@@ -141,7 +141,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Contact
 
-João Felipe Ribeiro Baião
-<baiaojfr@gmail.com>
+Thales Andrade Soares
+<thalesasoares02@gmail.com>
 Instituto Tecnológico Vale (ITV)
 Universidade Federal de Minas Gerais (UFMG)

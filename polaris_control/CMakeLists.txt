@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(espeleo_control2)
+project(polaris_control)
 
 
 #-----------------------------------------------------------------------------
@@ -110,17 +110,27 @@ install(TARGETS
 
 install(PROGRAMS
   scripts/robot_simulator.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(PROGRAMS
   src/feedback_linearization.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
-# Install launch and config files
+# Install launch, config, URDF, and meshes (RViz model) for navigation.launch.py
 install(
   DIRECTORY 
     launch 
+    urdf
     config
   DESTINATION share/${PROJECT_NAME}
 )
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/meshes")
+  install(DIRECTORY meshes DESTINATION share/${PROJECT_NAME})
+else()
+  message(WARNING "polaris_control: 'meshes' directory missing — copy scout_description/meshes here for RViz visuals, then rebuild.")
+endif()
 
 
 

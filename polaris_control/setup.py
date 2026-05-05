@@ -1,6 +1,6 @@
 from setuptools import setup
 
-package_name = 'espeleo_control2'
+package_name = 'polaris_control'
 
 setup(
     name=package_name,
@@ -16,16 +16,15 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='baiao',
-    maintainer_email='baiaojfr@gmail.com',
+    maintainer='thales',
+    maintainer_email='thalesasoares02@gmail.com',
     description='TODO: Package description',
     license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'robot_simulator = espeleo_control2.scripts.robot_simulator:main',
-            'feedback_linearization = espeleo_control2.feedback_linearization:main',
-            'vector_field_controller = espeleo_control2.vector_field_controller:main',
+            # Isso cria o executável 'robot_simulator' a partir do seu script
+            'robot_simulator = polaris_control.scripts.robot_simulator:main',
         ],
     },
 )

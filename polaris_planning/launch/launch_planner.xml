@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<launch>
+
+  <!-- RViz Node -->
+  <node pkg="rviz2" exec="rviz2" name="rviz" output="screen" args="-d $(find-pkg-share polaris_planning)/config/visualizer.rviz">
+    <param name="use_sim_time" value="false"/>
+  </node>
+
+	<!-- SELECT ONE OF THE NODES BELOW -->
+
+	<!--Run the node that will generate a path from clicked waypoints on cloud map-->
+  <node pkg="polaris_planning" exec="path_from_points" name="planner" output="screen">
+    <param from="$(find-pkg-share polaris_planning)/config/path_from_points.yaml"/>
+  </node>
+
+	<!--Run the node that will read a path from the file and publish to the controller-->
+  <!-- <node pkg="polaris_planning" exec="path_from_file" name="planner" output="screen">
+    <param from="$(find-pkg-share polaris_planning)/config/path_from_file.yaml"/>
+  </node> -->
+
+	<!--Run the node that will generate paths from equations-->
+  <!-- <node pkg="polaris_planning" exec="path_from_equation" name="planner" output="screen">
+    <param from="$(find-pkg-share polaris_planning)/config/path_from_equation.yaml"/>
+  </node> -->
+
+</launch>

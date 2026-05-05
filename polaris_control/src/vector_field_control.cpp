@@ -8,6 +8,8 @@
 #include "visualization_msgs/msg/marker_array.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include <nav_msgs/msg/path.hpp>
+#include "tf2/exceptions.h"
+#include "tf2/time.h"
 #include "tf2_ros/transform_listener.h"
 #include <tf2_ros/buffer.h>
 #include "tf2_msgs/msg/tf_message.hpp"
@@ -25,8 +27,7 @@
 Universidade Federal de Minas Gerais (UFMG) - 2025
 Laboratório CORO
 Instituto Tecnologico Vale (ITV)
-Contact:
-João Felipe Ribeiro Baião, <baiaojfr@gmail.com>
+Contact: Thales Andrade Soares, <thalesasoares02@gmail.com>
 */
 
 using namespace std::chrono_literals;
@@ -49,6 +50,10 @@ private:
     double switch_dist_;         // Corresponds to D_in in the paper
     double switch_dist_outer_;   // Corresponds to D_in^0 in the paper
     double lambda_;              // Desired circumnavigation distance
+    double goal_tolerance_;
+    double goal_hysteresis_;
+    double slowdown_radius_;
+    double min_tracking_speed_;
     bool flag_follow_obstacle_;
     bool closed_path_flag_;
     
@@ -59,6 +64,8 @@ private:
     std::string cmd_vel_topic_name_;
     std::string closest_obstacle_topic_name_;
     std::string is_path_closed_service_name_;
+    std::string tf_robot_pose_;
+    std::string tf_reference_frame_;
     
     // Path data
     std::vector<std::vector<double>> path_;
@@ -72,6 +79,8 @@ private:
     std::vector<double> robot_euler_angles_;
     std::vector<double> obstacle_pos_;
     bool has_obstacle_flag_;
+    bool has_pose_flag_;
+    bool goal_reached_flag_;
 
     // ROS interfaces
     rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr cmd_vel_pub_;
@@ -98,12 +107,18 @@ private:
         cmd_vel_topic_name_ = declare_parameter<std::string>("cmd_vel_topic_name", "vec_to_follow");
         closest_obstacle_topic_name_ = declare_parameter<std::string>("closest_obstacle_topic_name", "closest_obstacle"); // Corrected typo
         is_path_closed_service_name_ = declare_parameter<std::string>("is_path_closed_service_name", "is_path_closed");
+        tf_robot_pose_ = declare_parameter<std::string>("tf_robot_pose", "scout_mini/base_link");
+        tf_reference_frame_ = declare_parameter<std::string>("tf_reference_frame", "odom");
 
         // Obstacle avoidance parameters from the paper
         flag_follow_obstacle_ = declare_parameter<bool>("flag_follow_obstacle", true); // IMPORTANT: Must be set to true to enable avoidance
         lambda_ = declare_parameter<double>("lambda", 0.7); 
         switch_dist_ = declare_parameter<double>("switch_dist", 0.8); 
         switch_dist_outer_ = declare_parameter<double>("switch_dist_outer", 1.1);
+        goal_tolerance_ = declare_parameter<double>("goal_tolerance", 0.15);
+        goal_hysteresis_ = declare_parameter<double>("goal_hysteresis", 0.22);
+        slowdown_radius_ = declare_parameter<double>("slowdown_radius", 0.6);
+        min_tracking_speed_ = declare_parameter<double>("min_tracking_speed", 0.08);
         
         closed_path_flag_ = false;
         logParameters();
@@ -116,6 +131,9 @@ private:
         RCLCPP_INFO(get_logger(), "  lambda (avoid dist): %.2f", lambda_);
         RCLCPP_INFO(get_logger(), "  switch_dist (D_in): %.2f", switch_dist_);
         RCLCPP_INFO(get_logger(), "  switch_dist_outer (D_in^0): %.2f", switch_dist_outer_);
+        RCLCPP_INFO(get_logger(), "  goal_tolerance: %.2f, slowdown_radius: %.2f, min_tracking_speed: %.2f",
+            goal_tolerance_, slowdown_radius_, min_tracking_speed_);
+        RCLCPP_INFO(get_logger(), "  TF reference frame: %s, robot frame: %s", tf_reference_frame_.c_str(), tf_robot_pose_.c_str());
         RCLCPP_INFO(get_logger(), "-----------------------------------------");
     }
 
@@ -129,6 +147,8 @@ private:
         path_size_ = 0;
         has_path_flag_ = false;
         has_obstacle_flag_ = false;
+        has_pose_flag_ = false;
+        goal_reached_flag_ = false;
     }
 
     void setupROS() {
@@ -140,12 +160,20 @@ private:
             pose_sub_ = create_subscription<tf2_msgs::msg::TFMessage>(pose_topic_name_, 10, std::bind(&VectorFieldController::callbackTF, this, std::placeholders::_1));
         } else if (pose_topic_type_ == "Odometry") {
             //pose_sub_ = create_subscription<nav_msgs::msg::Odometry>(pose_topic_name_, 10, std::bind(&VectorFieldController::callbackOdometry, this, std::placeholders::_1));
+            pose_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
+            pose_topic_name_, // É melhor usar a variável do parâmetro
+            10, 
+            std::bind(&VectorFieldController::callbackOdometry, this, std::placeholders::_1) 
+            );
+        } else if (pose_topic_type_ == "PoseWithCovarience" || pose_topic_type_ == "PoseWithCovarianceStamped") {
+            //pose_sub_ = create_subscription<nav_msgs::msg::Odometry>(pose_topic_name_, 10, std::bind(&VectorFieldController::callbackOdometry, this, std::placeholders::_1));
             pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
             pose_topic_name_, // É melhor usar a variável do parâmetro
             10, 
-            std::bind(&VectorFieldController::callbackAmclPose, this, std::placeholders::_1) // <-- Correção aqui
+            std::bind(&VectorFieldController::callbackAmclPose, this, std::placeholders::_1) 
             );
         }
+        
         
         path_sub_ = create_subscription<nav_msgs::msg::Path>(path_topic_name_, 10, std::bind(&VectorFieldController::callbackPath, this, std::placeholders::_1));
         
@@ -160,8 +188,17 @@ private:
 
     // --- Main Loop ---
     void controlLoop() {
+        refreshRobotPoseFromTf();
+
+        if (!has_pose_flag_) {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000, "Waiting for a valid robot pose...");
+            publishStopCommand();
+            return;
+        }
+
         if (!has_path_flag_ || path_size_ == 0) {
             RCLCPP_INFO_ONCE(get_logger(), "Waiting for a path to be published...");
+            publishStopCommand();
             return;
         }
         
@@ -171,18 +208,20 @@ private:
 
     // --- Main Velocity Computation with Obstacle Avoidance ---
     geometry_msgs::msg::Vector3 computeVelocityCommand() {
+        if (isGoalReached()) {
+            visualizeCommand(0.0, 0.0);
+            return makeCommand(0.0, 0.0);
+        }
+
         // 1. Calculate the primary path-following field (Φ in the paper)
         auto field_path = computePathFollowingField();
 
         // 2. Check if obstacle avoidance is disabled or if we haven't seen an obstacle yet.
         //    If so, just follow the path.
         if (!flag_follow_obstacle_ || !has_obstacle_flag_) {
+            field_path = applyGoalSpeedSchedule(field_path);
             visualizeCommand(field_path.first, field_path.second);
-            geometry_msgs::msg::Vector3 vel_msg;
-            vel_msg.x = field_path.first;
-            vel_msg.y = field_path.second;
-            vel_msg.z = 0.0;
-            return vel_msg;
+            return makeCommand(field_path.first, field_path.second);
         }
 
         // 3. Implement the switching logic from Eq. 18 of the paper
@@ -219,12 +258,9 @@ private:
             final_field.second = theta * field_path.second + (1.0 - theta) * field_obstacle.second;
         }
         
+        final_field = applyGoalSpeedSchedule(final_field);
         visualizeCommand(final_field.first, final_field.second);
-        geometry_msgs::msg::Vector3 vel_msg;
-        vel_msg.x = final_field.first;
-        vel_msg.y = final_field.second;
-        vel_msg.z = 0.0;
-        return vel_msg;
+        return makeCommand(final_field.first, final_field.second);
     }
 
     // --- Field Calculation Functions ---
@@ -247,11 +283,76 @@ private:
         double Vx = speed_ref_ * (G * grad_D.first + H * T.first);
         double Vy = speed_ref_ * (G * grad_D.second + H * T.second);
         
-        if (!closed_path_flag_ && closest_index == static_cast<int>(path_size_) - 1) {
-            Vx = 0.0; Vy = 0.0;
-        }
-        
         return {Vx, Vy};
+    }
+
+    geometry_msgs::msg::Vector3 makeCommand(double vx, double vy) {
+        geometry_msgs::msg::Vector3 vel_msg;
+        vel_msg.x = vx;
+        vel_msg.y = vy;
+        vel_msg.z = 0.0;
+        return vel_msg;
+    }
+
+    void publishStopCommand() {
+        cmd_vel_pub_->publish(makeCommand(0.0, 0.0));
+    }
+
+    double distanceToGoal() const {
+        if (path_size_ == 0) {
+            return std::numeric_limits<double>::infinity();
+        }
+
+        const double dx = robot_pos_[0] - path_[0].back();
+        const double dy = robot_pos_[1] - path_[1].back();
+        return std::sqrt(dx * dx + dy * dy);
+    }
+
+    bool isGoalReached() {
+        if (closed_path_flag_ || !has_path_flag_ || path_size_ == 0) {
+            return false;
+        }
+
+        const double distance = distanceToGoal();
+        const double hysteresis = std::max(goal_hysteresis_, goal_tolerance_);
+
+        if (goal_reached_flag_) {
+            goal_reached_flag_ = distance < hysteresis;
+            return goal_reached_flag_;
+        }
+
+        if (distance <= goal_tolerance_) {
+            goal_reached_flag_ = true;
+            RCLCPP_INFO(get_logger(), "Goal reached within %.3f m.", distance);
+            return true;
+        }
+
+        return false;
+    }
+
+    std::pair<double, double> applyGoalSpeedSchedule(std::pair<double, double> field) {
+        if (closed_path_flag_ || !has_path_flag_ || path_size_ == 0) {
+            return field;
+        }
+
+        const double distance = distanceToGoal();
+        if (distance >= slowdown_radius_ || distance <= goal_tolerance_) {
+            return field;
+        }
+
+        const double speed = std::sqrt(field.first * field.first + field.second * field.second);
+        if (speed < 1e-6 || speed_ref_ < 1e-6) {
+            return field;
+        }
+
+        const double span = std::max(slowdown_radius_ - goal_tolerance_, 1e-6);
+        const double t = std::clamp((distance - goal_tolerance_) / span, 0.0, 1.0);
+        const double smooth = t * t * (3.0 - 2.0 * t);
+        const double floor_speed = std::clamp(min_tracking_speed_, 0.0, speed_ref_);
+        const double target_speed = floor_speed + (speed_ref_ - floor_speed) * smooth;
+        const double scale = target_speed / speed;
+
+        return {field.first * scale, field.second * scale};
     }
 
     // Calculates the obstacle avoidance field (Ψ)
@@ -357,7 +458,7 @@ private:
 
     void visualizeCommand(double Vx, double Vy) {
         visualization_msgs::msg::Marker marker;
-        marker.header.frame_id = "map"; // Assuming world frame is 'map'
+        marker.header.frame_id = "map";
         marker.header.stamp = now();
         marker.ns = "control_vector";
         marker.id = 0;
@@ -386,7 +487,8 @@ private:
 
     void callbackTF(const tf2_msgs::msg::TFMessage::SharedPtr msg) {
         for (const auto& transform : msg->transforms) {
-            if (transform.child_frame_id == "scout_mini/base_link") {
+            if (transform.header.frame_id == tf_reference_frame_ &&
+                transform.child_frame_id == tf_robot_pose_) {
                 updateRobotPose(
                     transform.transform.translation.x,
                     transform.transform.translation.y,
@@ -420,10 +522,41 @@ private:
         robot_pos_[0] = x;
         robot_pos_[1] = y;
         robot_pos_[2] = z;
+        has_pose_flag_ = true;
         
         tf2::Quaternion quat(q.x, q.y, q.z, q.w);
         tf2::Matrix3x3 mat(quat);
         mat.getRPY(robot_euler_angles_[0], robot_euler_angles_[1], robot_euler_angles_[2]);
+    }
+
+    bool refreshRobotPoseFromTf() {
+        if (!tf_buffer_) {
+            return false;
+        }
+
+        try {
+            auto transform = tf_buffer_->lookupTransform(
+                tf_reference_frame_,
+                tf_robot_pose_,
+                tf2::TimePointZero,
+                tf2::durationFromSec(0.02));
+
+            updateRobotPose(
+                transform.transform.translation.x,
+                transform.transform.translation.y,
+                transform.transform.translation.z,
+                transform.transform.rotation);
+
+            return true;
+        } catch (const tf2::TransformException& ex) {
+            RCLCPP_DEBUG_THROTTLE(
+                get_logger(), *get_clock(), 2000,
+                "TF pose lookup unavailable (%s <- %s): %s",
+                tf_reference_frame_.c_str(),
+                tf_robot_pose_.c_str(),
+                ex.what());
+            return false;
+        }
     }
 
     void callbackPath(const nav_msgs::msg::Path::SharedPtr msg) {
@@ -454,6 +587,7 @@ private:
         }
 
         has_path_flag_ = true;
+        goal_reached_flag_ = false;
         closed_path_flag_ = false;
 
         if (!is_path_closed_client_->wait_for_service(1s)) {
