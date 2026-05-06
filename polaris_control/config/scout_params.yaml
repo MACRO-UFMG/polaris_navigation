@@ -2,8 +2,8 @@
 
 controller:
   ros__parameters:
-    speed_ref: 0.2
-    convergence_gain: 4.0
+    speed_ref: 0.3
+    convergence_gain: 2.0
 
     pose_topic_type: "PoseWithCovarianceStamped"
     pose_topic_name: "/amcl_pose"
@@ -16,9 +16,9 @@ controller:
     is_path_closed_service_name: "is_path_closed"
 
     flag_follow_obstacle: true
-    lambda: 0.7
-    switch_dist: 0.5
-    switch_dist_outer: 0.6
+    lambda: 0.6
+    switch_dist: 0.6
+    switch_dist_outer: 0.9
     goal_tolerance: 0.15
     goal_hysteresis: 0.22
     slowdown_radius: 0.6

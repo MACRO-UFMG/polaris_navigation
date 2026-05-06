@@ -6,7 +6,7 @@ closest_obstacle_detector:
     visualization_topic: "/obstacle_clusters"
     
     # Frame IDs
-    laser_frame: "scout_mini/base_link"          # Frame do laser (pode ser base_link, laser, etc)
+    laser_frame: "livox_frame"          # Frame do laser (pode ser base_link, laser, etc)
     world_frame: "map"               # Frame global (odom ou map)
     
     # DBSCAN Clustering Parameters

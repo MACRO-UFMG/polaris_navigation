@@ -90,20 +90,33 @@ def generate_launch_description():
 
     # --- Publicador de TF Estática 1 (scout_mini/base_link -> fast_lio/base_link) ---
     # <node pkg="tf2_ros" exec="static_transform_publisher" ...>
-    static_tf_1 = Node(
+    static_tf_map_to_odom = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
-        name='static_tf_scout_to_fastlio', # Nome precisa ser único
-        arguments=['0', '0', '0', '0', '0', '0', 'scout_mini/base_link', 'fast_lio/base_link']
+        name='static_map_to_odom_publisher',
+        # Note que 'args' no XML é uma string única, 
+        # mas 'arguments' no Python é uma lista de strings
+        arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom']
     )
 
-    # --- Publicador de TF Estática 2 (scout_mini/base_link -> base_link) ---
-    # <node pkg="tf2_ros" exec="static_transform_publisher" ...>
-    static_tf_2 = Node(
+    # static_tf_map_to_camera_init = Node(
+    #     package='tf2_ros',
+    #     executable='static_transform_publisher',
+    #     name='static_map_to_camera_init_publisher',
+    #     # Note que 'args' no XML é uma string única, 
+    #     # mas 'arguments' no Python é uma lista de strings
+    #     arguments=['0', '0', '0', '0', '0', '0', 'map', 'camera_init']
+    # )
+
+    #tf from body to livox_frame
+    static_tf_body_to_livox_frame = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
-        name='static_tf_scout_to_base', # Nome precisa ser único
-        arguments=['0', '0', '0', '0', '0', '0', 'scout_mini/base_link', 'base_link']
+        name='static_body_to_livox_frame_publisher',
+        # Note que 'args' no XML é uma string única, 
+        # mas 'arguments' no Python é uma lista de strings
+        #livox is 37cm above the body (37cm in z axis)
+        arguments=['0', '0', '0.32', '0', '0', '0', 'body', 'livox_frame']
     )
 
     # --- Outros TFs Estáticos (Comentados) ---
@@ -140,8 +153,8 @@ def generate_launch_description():
         controller_node,
         planner_node,
         closest_obstacle_detector_node,
-        static_tf_1,
-        static_tf_2,
+        static_tf_map_to_odom,
+        static_tf_body_to_livox_frame,
         
         # Descomente as linhas abaixo se quiser adicionar os nós comentados
         # robot_sim_node,
