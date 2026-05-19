@@ -1,5 +1,135 @@
 # Changelog
 
+---
+
+## 2026-05-19 - Dual-Mode Follower Control: Orientation-Only P Controller
+
+### Overview
+
+`follower_control.py` now supports two mutually exclusive runtime behaviours selectable via a ROS 2 topic flag. The original feedback-linearisation vector-follow mode is preserved exactly. A new proportional orientation-only mode was added to allow the robot to rotate in place to face a commanded target point without translating.
+
+### Added
+
+**`polaris_control/src/follower_control.py`** — new file (node `vector_follower_node`)
+
+- Added two new subscriptions controlled by parameters:
+  - `orient_flag_topic` (default `/orient_mode`, type `std_msgs/Bool`): when `True`, switches the node into orientation mode; `False` (default) keeps the existing vec-to-follow behaviour.
+  - `orient_point_topic` (default `/orient_target`, type `geometry_msgs/Point`): global-frame (x, y) point the robot should face while in orientation mode.
+- Added new parameter `kp_orient` (default `2.0`): proportional gain for the yaw error in orientation mode.
+- Orientation controller computes `theta_des = atan2(dy, dx)` from the robot's current position to the target point, normalises the angular error through `atan2(sin(e), cos(e))` to handle wrap-around, and outputs `w = clip(kp_orient * e_theta, ±const_omega)` with `linear.x = 0`.
+- Robot position (`robot_x`, `robot_y`) is now tracked alongside `theta` in all three existing pose-source paths: `Odometry_callback`, `amcl_pose_callback`, and `_update_theta_from_tf`, so orientation mode works regardless of the configured `pose_topic_type`.
+- When orientation mode is active but the target or pose is not yet available, the node publishes a zero `Twist` and logs a throttled warning.
+
+**`polaris_control/launch/follower_control.launch.py`** — new file
+
+- Standalone launch file that starts the `follower_control.py` node with parameters loaded from `pioneer_params.yaml`.
+
+### Changed
+
+**`polaris_control/CMakeLists.txt`**
+
+- Added install rule for `src/follower_control.py` so the node is available as a ROS 2 executable after build.
+
+**`polaris_control/config/pioneer_params.yaml`**
+
+- Added `follower_control` namespace with the full parameter set for the new node (`distancia_ponto_controle`, `const_vel`, `const_omega`, `control_period`, topic names, pose source configuration).
+- Added `planner` namespace (`pose_topic_type: TFMessage`, `tf_reference_frame: map`, `tf_robot_pose: body`) so `path_from_points` reads its frame configuration from this file.
+- Updated `controller` and `feedback_linearization` parameter blocks to match Pioneer-specific tuning (`speed_ref: 0.15`, `convergence_gain: 2.0`, explicit `goal_tolerance`, `goal_hysteresis`, `slowdown_radius`, `min_tracking_speed`).
+
+**`polaris_control/launch/feedback_linearization.launch.py`** and **`polaris_control/launch/navigation.launch.py`**
+
+- Changed the default parameter file from `scout_params.yaml` to `pioneer_params.yaml` so Pioneer robot launches pick up the correct configuration without extra arguments.
+
+---
+
+## 2026-05-06 - Obstacle Avoidance Tuning for Scout Mini
+
+### Changed
+
+- `polaris_control/config/closest_obstacle_detector_params.yaml`: tuned obstacle detector parameters for Scout Mini platform.
+- `polaris_control/config/scout_params.yaml`: updated controller gains and obstacle avoidance thresholds.
+- `polaris_control/launch/safe_nav_stack.launch.py`: revised launch to wire obstacle detector and navigation stack correctly for Scout Mini.
+
+---
+
+## 2026-05-05 - Package Restructure and polaris_planning Introduction
+
+### Overview
+
+The repository was restructured from a flat package layout into two well-defined sub-packages: `polaris_control` and `polaris_planning`. `polaris_planning` is an entirely new addition providing reference path generation nodes. All existing control code was migrated into `polaris_control` under the new folder tree without change to functionality.
+
+### Added
+
+**`polaris_planning/`** — new sub-package
+
+- `src/path_from_points.cpp`: generates a smooth reference path from a list of 2D waypoints. Publishes the sampled path as a `nav_msgs/Path` on a configurable topic and exposes an `is_path_closed` service.
+- `src/path_from_file.cpp`: loads a path from a text file and republishes it.
+- `src/path_from_equation.cpp`: generates a path from a parametric equation defined in config.
+- `config/path_from_points.yaml`, `path_from_file.yaml`, `path_from_equation.yaml`: configuration files for each planner node.
+- `srv/Trigger.srv`: custom service definition used by path planners to signal open/closed path topology.
+- Sample path files under `path_txt/` (`path_1.txt` – `path_4.txt`).
+- `scripts/tf_fixed.py`: utility script for broadcasting a static TF for testing.
+
+**`polaris_control/`** — new sub-package structure (code migrated from root)
+
+- `src/feedback_linearization.py`: Python node that converts a desired global velocity vector into linear and angular velocity commands using feedback linearisation.
+- `config/pioneer_params.yaml`: new Pioneer-specific parameter file.
+- `config/scout_params.yaml`: new Scout Mini parameter file.
+- `launch/navigation.launch.py`, `safe_nav_stack.launch.py`, `demo.launch.py`, `feedback_linearization.launch.py`: full ROS 2 Python launch files replacing the previous XML launchers.
+- `urdf/model.urdf`: robot URDF used for visualisation in RViz.
+
+### Changed
+
+- `CMakeLists.txt`: updated to reflect new package structure, install paths, and added `polaris_planning` build rules.
+- `package.xml`: updated dependencies to include `polaris_planning` requirements and corrected package name.
+- `setup.py`: updated entry points for new package paths.
+- Removed legacy XML launch files (`launch/demo.xml`, `launch/test_obstacle_detection.xml`) in favour of Python launch files.
+
+---
+
+## 2025-10-24 - Feedback Linearisation ROS 2 Compatibility Fix
+
+### Fixed
+
+- Rewrote `src/feedback_linearization.py` for full ROS 2 (rclpy) compatibility. Removed ~400 lines of ROS 1 code; replaced with a clean `rclpy.node.Node` implementation (~120 lines) that subscribes to velocity vectors and publishes `Twist` commands.
+- Updated `CMakeLists.txt` and `package.xml` to declare the correct ROS 2 build and runtime dependencies.
+- Corrected `setup.py` entry point configuration.
+
+---
+
+## 2025-10-19 - AMCL Pose Integration and Obstacle Avoidance Fixes
+
+### Fixed
+
+- `src/feedback_linearization.py`: added callback and parameter support for subscribing to `/amcl_pose` (`PoseWithCovarianceStamped`) as an alternative pose source.
+- `src/vector_field_control.cpp`: extended pose handling to accept AMCL pose topic in addition to TF.
+- `config/closest_obstacle_detector_params.yaml` and `launch/test_obstacle_detection.xml`: corrected topic names and frame IDs that caused the obstacle detector to receive no data.
+- `src/closest_obstacle_detector.cpp`: fixed a frame-mismatch bug that caused obstacle positions to be reported in the wrong reference frame.
+- `src/vector_field_control.cpp`: corrected gain signs and topic remappings in the obstacle avoidance blending logic.
+
+---
+
+## 2025-10-15 - LaserScan 2D Obstacle Detection with DBSCAN Clustering
+
+### Added
+
+- `src/closest_obstacle_detector.cpp`: new ROS 2 node that subscribes to `sensor_msgs/LaserScan`, clusters the scan points with a DBSCAN algorithm, and publishes the position of the closest detected cluster as an obstacle marker.
+- `config/closest_obstacle_detector_params.yaml`: configuration file exposing DBSCAN parameters (`eps`, `min_points`), scan topic name, and output topic name.
+- `launch/test_obstacle_detection.xml`: launch file to test the detector standalone.
+- Updated `CMakeLists.txt` to build and install the new node.
+
+---
+
+## 2025-10-09 - Scout Mini Real Robot Bring-Up (FAST-LIO + AMCL)
+
+### Changed
+
+- `src/feedback_linearization.py`: adjusted parameters and pose handling for real Scout Mini hardware running FAST-LIO odometry and AMCL localisation.
+- `src/vector_field_control.cpp`: tuned control gains for real-robot deployment.
+- `launch/demo.xml`: updated node arguments to match the real-robot topic and TF frame names.
+
+---
+
 ## 2026-04-28 - Polaris AMCL Startup and Goal Convergence Fixes
 
 This update addresses two operational problems observed when using Polaris with AMCL:
