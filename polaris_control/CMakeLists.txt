@@ -118,6 +118,11 @@ install(PROGRAMS
   DESTINATION lib/${PROJECT_NAME}
 )
 
+install(PROGRAMS
+  src/follower_control.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 # Install launch, config, URDF, and meshes (RViz model) for navigation.launch.py
 install(
   DIRECTORY 
