@@ -50,6 +50,10 @@ follower_control:
     pose_topic: "/amcl_pose"
     tf_robot_pose: "body"
     tf_inertial_link: "map"
+    orient_point_topic: "/inspection_pose"
+    stop_robot_topic: "/stop_robot"
+    stop_control_topic: "/stop_control"
+    clear_planner_service: "/clear_planner"
 
 
 planner:

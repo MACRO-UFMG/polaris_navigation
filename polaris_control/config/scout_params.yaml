@@ -2,7 +2,7 @@
 
 controller:
   ros__parameters:
-    speed_ref: 0.3
+    speed_ref: 0.15
     convergence_gain: 2.0
 
     pose_topic_type: "PoseWithCovarianceStamped"
@@ -28,7 +28,7 @@ controller:
 feedback_linearization:
   ros__parameters:
     distancia_ponto_controle: 0.15
-    const_vel: 0.3
+    const_vel: 0.15
     const_omega: 2.0
     control_period: 0.05
     cmd_vel_topic: "/cmd_vel"
@@ -37,6 +37,23 @@ feedback_linearization:
     pose_topic: "/amcl_pose"
     tf_robot_pose: "body"
     tf_inertial_link: "map"
+
+follower_control:
+  ros__parameters:
+    distancia_ponto_controle: 0.15
+    const_vel: 0.15
+    const_omega: 2.0
+    control_period: 0.05
+    cmd_vel_topic: "/cmd_vel"
+    vec_to_follow_topic: "/vec_to_follow"
+    pose_topic_type: "PoseWithCovarianceStamped"
+    pose_topic: "/amcl_pose"
+    tf_robot_pose: "body"
+    tf_inertial_link: "map"
+    orient_point_topic: "/inspection_pose"
+    stop_robot_topic: "/stop_robot"
+    stop_control_topic: "/stop_control"
+    clear_planner_service: "/clear_planner"
 
 
 planner:
