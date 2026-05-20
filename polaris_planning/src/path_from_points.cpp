@@ -561,10 +561,16 @@ private:
         (void)request;  // Unused parameter
         
         points_.clear();
+        closed_path_ = false;
         visualize_waypoints();
+
+        auto poly_msg = std::make_shared<nav_msgs::msg::Path>();
+        poly_msg->header.stamp = this->now();
+        poly_msg->header.frame_id = "map";
+        pub_path_->publish(*poly_msg);
         
         response->success = true;
-        response->message = "All points successfully cleared";
+        response->message = "All points and ref_path successfully cleared";
         RCLCPP_INFO(get_logger(), "%s", response->message.c_str());
     }
 

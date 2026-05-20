@@ -569,7 +569,11 @@ private:
 
         path_size_ = path_[0].size();
         if (path_size_ == 0) {
-            RCLCPP_WARN(get_logger(), "Received empty path");
+            has_path_flag_ = false;
+            closed_path_flag_ = false;
+            goal_reached_flag_ = false;
+            current_closest_index_ = 0;
+            RCLCPP_INFO(get_logger(), "Path cleared; waiting for a new ref_path");
             return;
         }
 
