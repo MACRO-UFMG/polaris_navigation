@@ -15,8 +15,8 @@ def generate_launch_description():
 
     feedback_node = Node(
         package=package_name,
-        executable='feedback_linearization.py',
-        name='feedback_linearization',
+        executable='follower_control.py',
+        name='follower_control',
         output='screen',
         parameters=[param_config_file]         
     )
