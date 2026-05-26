@@ -197,8 +197,8 @@ private:
     void declareParameters() {
         this->declare_parameter<int>("path_number", 2);
         this->declare_parameter<int>("number_of_samples", 100);
-        this->declare_parameter<double>("a", 1.3);
-        this->declare_parameter<double>("b", 0.6);
+        this->declare_parameter<double>("a", 1.2);
+        this->declare_parameter<double>("b", 0.8);
         this->declare_parameter<double>("phi", 0.0);
         this->declare_parameter<double>("cx", 0.0);
         this->declare_parameter<double>("cy", 0.0);

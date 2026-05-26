@@ -11,9 +11,9 @@
     number_of_samples: 200
 
     # Stretch factor of the curve in the x direction
-    a: 1.0
+    a: 10.4
     # Stretch factor of the curve in the y direction
-    b: 0.6
+    b: 0.4
     # Rotation of the curve around the z axis (in dregrees)
     phi: 0.0
     # Displacement in the x direction (meters)

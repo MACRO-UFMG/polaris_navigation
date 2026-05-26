@@ -3,7 +3,7 @@
 controller:
   ros__parameters:
     speed_ref: 0.2
-    convergence_gain: 5.0
+    convergence_gain: 3.0
     
     pose_topic_type: "TFMessage"            # Options are Odometry or TFMessage Pose or PoseWithCovarience
     pose_topic_name: "/tf"          # If using a topic type pose_topic_type Odometry
@@ -18,9 +18,9 @@ controller:
 
     # Obstacle avoidance parameters
     flag_follow_obstacle: true  # IMPORTANT: Must be set to true to enable avoidance
-    lambda: 1.1                 # Gain to the deflection vector
-    switch_dist: 1.2            # Distance to change between fused vector field and totally avoiding obstacle
-    switch_dist_outer: 1.5      # Distance to change between fused vector field and totally follow reference path
+    lambda: 0.6                 # Gain to the deflection vector
+    switch_dist: 0.8            # Distance to change between fused vector field and totally avoiding obstacle
+    switch_dist_outer: 1.4      # Distance to change between fused vector field and totally follow reference path
 
 feedback_linearization:
   ros__parameters:

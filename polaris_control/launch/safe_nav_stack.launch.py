@@ -3,7 +3,7 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
 
-params_file = "scout_params.yaml"
+params_file = "espeleo_params.yaml"
 
 def generate_launch_description():
 
@@ -13,7 +13,6 @@ def generate_launch_description():
     
     # $(find-pkg-share polaris_control)
     polaris_control_share = get_package_share_directory('polaris_control')
-    polaris_planning_share = get_package_share_directory('polaris_planning')
     
     # Caminho para o arquivo RViz
     rviz_config_file = os.path.join(
@@ -27,7 +26,6 @@ def generate_launch_description():
     )
 
     param_controller_file = os.path.join(polaris_control_share, 'config', params_file)
-    planner_params_file = os.path.join(polaris_planning_share, 'config', 'path_from_points.yaml')
 
     # ===================================================================
     # Definições dos Nós
@@ -60,10 +58,9 @@ def generate_launch_description():
     # <node pkg="polaris_planning" exec="path_from_points" ...>
     planner_node = Node(
         package='polaris_planning',
-        executable='path_from_points',
+        executable='path_from_equation',
         name='planner',
-        output='screen',
-        parameters=[planner_params_file]
+        output='screen'
     )
 
     # --- PERCEPTION - LaserScan Obstacle Detector ---
@@ -90,13 +87,22 @@ def generate_launch_description():
 
     # --- Publicador de TF Estática 1 (scout_mini/base_link -> fast_lio/base_link) ---
     # <node pkg="tf2_ros" exec="static_transform_publisher" ...>
-    static_tf_map_to_odom = Node(
+    static_tf_map_to_base_init = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='static_map_to_odom_publisher',
         # Note que 'args' no XML é uma string única, 
         # mas 'arguments' no Python é uma lista de strings
-        arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom']
+        arguments=['0', '0', '0', '0', '0', '0', 'map', 'base_init']
+    )
+
+    static_tf_base_init_to_chassis = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_base_init_to_chassis_publisher',
+        # Note que 'args' no XML é uma string única, 
+        # mas 'arguments' no Python é uma lista de strings
+        arguments=['0', '0', '0', '0', '0', '0', 'base_init', 'chassis_init']
     )
 
     # static_tf_map_to_camera_init = Node(
@@ -105,45 +111,45 @@ def generate_launch_description():
     #     name='static_map_to_camera_init_publisher',
     #     # Note que 'args' no XML é uma string única, 
     #     # mas 'arguments' no Python é uma lista de strings
-    #     arguments=['0', '0', '0', '0', '0', '0', 'map', 'camera_init']
+    #     arguments=['0', '0', '0', '0', '0', '0', 'map', 'camera init']
     # )
 
-    #tf from body to livox_frame
-    static_tf_body_to_livox_frame = Node(
+    static_tf_map_to_camera_init = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
-        name='static_body_to_livox_frame_publisher',
-        # Note que 'args' no XML é uma string única, 
-        # mas 'arguments' no Python é uma lista de strings
-        #livox is 37cm above the body (37cm in z axis)
-        arguments=['0', '0', '0.32', '0', '0', '0', 'body', 'livox_frame']
+        name='static_map_to_camera_init_publisher',
+        arguments=[
+            '0', '0', '0',             # Translação (x, y, z)
+            '0.5', '-0.5', '0.5', '-0.5', # Rotação (qx, qy, qz, qw)
+            'map',                     # Frame de origem
+            'camera_init'              # Frame de destino
+        ]
     )
 
-    # --- Outros TFs Estáticos (Comentados) ---
-    # <node pkg="tf2_ros" ... args="0 0 0 0 0 0 world map" />
-    # static_tf_world_to_map = Node(
-    #     package='tf2_ros',
-    #     executable='static_transform_publisher',
-    #     name='static_tf_world_to_map',
-    #     arguments=['0', '0', '0', '0', '0', '0', 'world', 'map']
-    # )
-    
-    # <node pkg="tf2_ros" ... args="0 0 0 0 0 0 base_link fast_lio/base_link" />
-    # static_tf_base_to_fastlio = Node(
-    #     package='tf2_ros',
-    #     executable='static_transform_publisher',
-    #     name='static_tf_base_to_fastlio',
-    #     arguments=['0', '0', '0', '0', '0', '0', 'base_link', 'fast_lio/base_link']
-    # )
+    static_tf_test = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_tf_test',
+        arguments=[
+            '0', '0', '0',             # Translação (x, y, z)
+            '0.5', '-0.5', '0.5', '0.5', # Rotação (qx, qy, qz, qw)
+            'body',                     # Frame de origem
+            'robo'              # Frame de destino
+        ]
+    )
 
-    # --- Nó 'vector_follower' (Comentado) ---
-    # <node pkg="polaris_control" exec="vector_follower_node" ...>
-    # vector_follower_node = Node(
-    #     package='polaris_control',
-    #     executable='vector_follower_node',
-    #     name='vector_follower',
-    #     output='screen'
-    # )
+    static_robo_to_velodyne = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_robo_to_velodyne',
+        arguments=[
+            '0', '0', '0.27',             # Translação (x, y, z)
+            '0.0', '0.0', '0.0', '1.0', # Rotação (qx, qy, qz, qw)
+            'robo',                     # Frame de origem
+            'velodyne'              # Frame de destino
+        ]
+    )
+
 
     # ===================================================================
     # Retorna a Descrição do Launch
@@ -153,8 +159,13 @@ def generate_launch_description():
         controller_node,
         planner_node,
         closest_obstacle_detector_node,
-        static_tf_map_to_odom,
-        static_tf_body_to_livox_frame,
+        static_tf_map_to_base_init,
+        static_tf_base_init_to_chassis,
+        static_tf_map_to_camera_init,
+        static_tf_test,
+        static_robo_to_velodyne,
+
+
         
         # Descomente as linhas abaixo se quiser adicionar os nós comentados
         # robot_sim_node,

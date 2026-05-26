@@ -6,8 +6,6 @@
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <Eigen/Dense> 
-#include "tf2/exceptions.h"
-#include "tf2/time.h"
 #include "tf2_ros/transform_listener.h"
 #include <tf2_ros/buffer.h>
 #include "tf2_msgs/msg/tf_message.hpp"
@@ -43,10 +41,7 @@ public:
         this->declare_parameter<std::string>("is_path_closed_service_name", "is_path_closed");
         this->declare_parameter<std::string>("visualization_topic_name", "visual_path");
         this->declare_parameter<std::string>("clicked_point_topic_name", "goal_pose");
-        this->declare_parameter<std::string>("pose_topic_type", "TFMessage"); // TFMessage | Odometry | PoseWithCovarience
-        this->declare_parameter<std::string>("pose_topic_name", "/tf");
-        this->declare_parameter<std::string>("tf_reference_frame", "odom");
-        this->declare_parameter<std::string>("tf_robot_pose", "body");
+        this->declare_parameter<std::string>("pose_topic_name", "tf");
         this->declare_parameter<std::string>("start_service_name", "start_planner");
         this->declare_parameter<std::string>("clear_service_name", "clear_planner");
         this->declare_parameter<std::string>("remove_last_point_service_name", "remove_last_point");
@@ -60,10 +55,7 @@ public:
         is_path_closed_service_name_ = this->get_parameter("is_path_closed_service_name").as_string();
         visualization_topic_name_ = this->get_parameter("visualization_topic_name").as_string();
         clicked_point_topic_name_ = this->get_parameter("clicked_point_topic_name").as_string();
-        pose_topic_type_ = this->get_parameter("pose_topic_type").as_string();
         pose_topic_name_ = this->get_parameter("pose_topic_name").as_string();
-        tf_reference_frame_ = this->get_parameter("tf_reference_frame").as_string();
-        tf_robot_pose_ = this->get_parameter("tf_robot_pose").as_string();
         start_service_name_ = this->get_parameter("start_service_name").as_string();
         clear_service_name_ = this->get_parameter("clear_service_name").as_string();
         remove_last_point_service_name = this->get_parameter("remove_last_point_service_name").as_string();
@@ -74,16 +66,10 @@ public:
         RCLCPP_INFO(this->get_logger(), "path_topic_name: %s", path_topic_name_.c_str());
         RCLCPP_INFO(this->get_logger(), "visualization_topic_name: %s", visualization_topic_name_.c_str());
         RCLCPP_INFO(this->get_logger(), "clicked_point_topic_name: %s", clicked_point_topic_name_.c_str());
-        RCLCPP_INFO(this->get_logger(), "pose_topic_type: %s", pose_topic_type_.c_str());
         RCLCPP_INFO(this->get_logger(), "pose_topic_name: %s", pose_topic_name_.c_str());
-        RCLCPP_INFO(this->get_logger(), "TF reference frame: %s", tf_reference_frame_.c_str());
-        RCLCPP_INFO(this->get_logger(), "TF robot frame: %s", tf_robot_pose_.c_str());
         RCLCPP_INFO(this->get_logger(), "start_service_name: %s", start_service_name_.c_str());
         RCLCPP_INFO(this->get_logger(), "clear_service_name: %s", clear_service_name_.c_str());
         RCLCPP_INFO(this->get_logger(), "remove_last_point_service_name: %s", remove_last_point_service_name.c_str());
-
-        tf_buffer_ = std::make_unique<tf2_ros::Buffer>(get_clock());
-        tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
         // Initialize publishers
         pub_path_ = this->create_publisher<nav_msgs::msg::Path>(path_topic_name_, 10);
@@ -95,27 +81,15 @@ public:
             clicked_point_topic_name_, 10,
             std::bind(&PathFromPoints::callback_new_point, this, std::placeholders::_1));
             
-        if (pose_topic_type_ == "TFMessage") {
-            pose_sub_ = this->create_subscription<tf2_msgs::msg::TFMessage>(
-                pose_topic_name_, 10,
-                std::bind(&PathFromPoints::callbackTF, this, std::placeholders::_1));
-        } else if (pose_topic_type_ == "Odometry") {
-            pose_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-                pose_topic_name_, 10,
-                std::bind(&PathFromPoints::callback_odom, this, std::placeholders::_1));
-        } else if (pose_topic_type_ == "PoseWithCovarience" || pose_topic_type_ == "PoseWithCovarianceStamped") {
-            pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
-                pose_topic_name_, 10,
-                std::bind(&PathFromPoints::callbackAmclPose, this, std::placeholders::_1));
-        } else {
-            RCLCPP_WARN(
-                this->get_logger(),
-                "Invalid pose_topic_type '%s'. Falling back to TFMessage.",
-                pose_topic_type_.c_str());
-            pose_sub_ = this->create_subscription<tf2_msgs::msg::TFMessage>(
-                pose_topic_name_, 10,
-                std::bind(&PathFromPoints::callbackTF, this, std::placeholders::_1));
-        }
+        // pose_subscription_ = this->create_subscription<tf2_msgs::msg::TFMessage>(
+        //     pose_topic_name_, 10, 
+        //     std::bind(&PathFromPoints::callbackTF, this, std::placeholders::_1));
+        
+        pose_subscription_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+            "/amcl_pose", 
+            10, 
+            std::bind(&PathFromPoints::callbackAmclPose, this, std::placeholders::_1)
+        );
   
 
         // Initialize services
@@ -146,7 +120,6 @@ public:
 
         // Initialize robot position
         robot_position_ = {0.0, 0.0, 0.0};
-        has_robot_pose_ = false;
     }
 
 // ----------  ----------  ----------  ----------  ----------
@@ -160,20 +133,14 @@ private:
     std::string is_path_closed_service_name_;
     std::string visualization_topic_name_;
     std::string clicked_point_topic_name_;
-    std::string pose_topic_type_;
     std::string pose_topic_name_;
-    std::string tf_reference_frame_;
-    std::string tf_robot_pose_;
     std::string start_service_name_;
     std::string clear_service_name_;
     std::string remove_last_point_service_name;
     bool closed_path_ = false;
-    bool has_robot_pose_ = false;
     
     std::vector<std::vector<double>> points_;
     std::array<double, 3> robot_position_;
-    std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
-    std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
     
     // Publishers
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pub_path_;
@@ -182,7 +149,8 @@ private:
     
     // Subscribers
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr clicked_point_subscription_;
-    rclcpp::SubscriptionBase::SharedPtr pose_sub_;
+    //rclcpp::Subscription<tf2_msgs::msg::TFMessage>::SharedPtr pose_subscription_;
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_subscription_;
 
     // Services
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr start_service_;
@@ -494,24 +462,17 @@ private:
     // Service callbacks
 
     // ADICIONADO: Nova função que centraliza a lógica de planejamento para ser reusada.
-    bool plan_and_publish_path()
+    void plan_and_publish_path()
     {
-        refreshRobotPoseFromTf();
-
-        if (!has_robot_pose_) {
-            RCLCPP_WARN(get_logger(), "Cannot plan yet: waiting for a valid robot pose.");
-            return false;
-        }
-
         if (points_.size() < static_cast<size_t>(flag_interpolation_method_)-1) {
             RCLCPP_WARN(get_logger(), "Não há pontos suficientes para o método de interpolação. Planejamento ignorado.");
-            return false;
+            return;
         }
         
         // Corrigido: a condição original era impossível de ser verdadeira (x < 1 && x > 4)
         if (flag_interpolation_method_ < 1 || flag_interpolation_method_ > 4) {
             RCLCPP_WARN(get_logger(), "Método de interpolação inválido. Use 1-4. Planejamento ignorado.");
-            return false;
+            return;
         }
         
         std::vector<std::vector<double>> path_planned = plannerFunction();
@@ -537,7 +498,6 @@ private:
         pub_path_->publish(*poly_msg);
         
         RCLCPP_INFO(get_logger(), "Caminho planejado e publicado com sucesso.");
-        return true;
     }
 
     // MODIFICADO: O callback do serviço agora chama a função centralizada.
@@ -548,10 +508,10 @@ private:
         (void)request;  // Unused parameter
         RCLCPP_INFO(get_logger(), "Serviço 'start_planner' chamado.");
 
-        response->success = plan_and_publish_path();
-        response->message = response->success
-            ? "Comando de planejamento executado."
-            : "Planejamento ignorado: pose válida ou pontos insuficientes.";
+        plan_and_publish_path();
+
+        response->success = true;
+        response->message = "Comando de planejamento executado.";
     }
 
     void handle_clear_service(
@@ -561,16 +521,10 @@ private:
         (void)request;  // Unused parameter
         
         points_.clear();
-        closed_path_ = false;
         visualize_waypoints();
-
-        auto poly_msg = std::make_shared<nav_msgs::msg::Path>();
-        poly_msg->header.stamp = this->now();
-        poly_msg->header.frame_id = "map";
-        pub_path_->publish(*poly_msg);
         
         response->success = true;
-        response->message = "All points and ref_path successfully cleared";
+        response->message = "All points successfully cleared";
         RCLCPP_INFO(get_logger(), "%s", response->message.c_str());
     }
 
@@ -633,42 +587,9 @@ private:
     }
 
     void updateRobotPose(double x, double y, double z, const geometry_msgs::msg::Quaternion& q) {
-        (void)q;
         robot_position_[0] = x;
         robot_position_[1] = y;
         robot_position_[2] = z;
-        has_robot_pose_ = true;
-    }
-
-    bool refreshRobotPoseFromTf()
-    {
-        if (!tf_buffer_) {
-            return false;
-        }
-
-        try {
-            auto transform = tf_buffer_->lookupTransform(
-                tf_reference_frame_,
-                tf_robot_pose_,
-                tf2::TimePointZero,
-                tf2::durationFromSec(0.05));
-
-            updateRobotPose(
-                transform.transform.translation.x,
-                transform.transform.translation.y,
-                transform.transform.translation.z,
-                transform.transform.rotation);
-
-            return true;
-        } catch (const tf2::TransformException & ex) {
-            RCLCPP_DEBUG(
-                get_logger(),
-                "TF pose lookup unavailable (%s <- %s): %s",
-                tf_reference_frame_.c_str(),
-                tf_robot_pose_.c_str(),
-                ex.what());
-            return false;
-        }
     }
 
     // ----------  ----------  ----------  ----------  ----------
@@ -680,20 +601,18 @@ private:
             msg->pose.pose.position.y,
             msg->pose.pose.position.z - 0.4
         };
-        has_robot_pose_ = true;
     }
 
     void callbackTF(const tf2_msgs::msg::TFMessage::SharedPtr msg) {
         
         for (const auto& transform : msg->transforms) {
-            if (transform.header.frame_id == tf_reference_frame_ &&
-                transform.child_frame_id == tf_robot_pose_) {
+            if (transform.child_frame_id == "scout_mini/base_link") {
                 updateRobotPose(
                     transform.transform.translation.x,
                     transform.transform.translation.y,
                     transform.transform.translation.z,
                     transform.transform.rotation);
-                    // std::cout << "Recebeu pose" << std::endl;
+                    // std::cout << "Recebeu pose" << std::endl; // Comentado para não poluir o terminal
             }
         }
     }

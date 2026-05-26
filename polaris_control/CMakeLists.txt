@@ -118,24 +118,13 @@ install(PROGRAMS
   DESTINATION lib/${PROJECT_NAME}
 )
 
-install(PROGRAMS
-  src/follower_control.py
-  DESTINATION lib/${PROJECT_NAME}
-)
-
-# Install launch, config, URDF, and meshes (RViz model) for navigation.launch.py
+# Install launch and config files
 install(
   DIRECTORY 
     launch 
-    urdf
     config
   DESTINATION share/${PROJECT_NAME}
 )
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/meshes")
-  install(DIRECTORY meshes DESTINATION share/${PROJECT_NAME})
-else()
-  message(WARNING "polaris_control: 'meshes' directory missing — copy scout_description/meshes here for RViz visuals, then rebuild.")
-endif()
 
 
 

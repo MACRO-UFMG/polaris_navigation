@@ -30,6 +30,19 @@ def quaternion_to_euler_yaw(q_ros):
     t4 = +1.0 - 2.0 * (y * y + z * z)
     return math.atan2(t3, t4)
 
+def quaternion_to_euler_pitch(q_ros):
+    x, y, z, w = q_ros.x, q_ros.y, q_ros.z, q_ros.w
+    
+    # Cálculo da componente do pitch
+    t2 = +2.0 * (w * y - z * x)
+    
+    # Clipping para evitar erro de domínio matemático (math domain error)
+    # Devido à precisão de ponto flutuante, t2 pode ser 1.0000000001, o que quebra o math.asin
+    t2 = +1.0 if t2 > +1.0 else t2
+    t2 = -1.0 if t2 < -1.0 else t2
+    
+    return math.asin(t2)
+
 
 class VectorFollowerNode(Node):
     def __init__(self):
@@ -42,13 +55,12 @@ class VectorFollowerNode(Node):
         self.declare_parameter('stuck_timeout', 3.0)
         self.declare_parameter('escape_duration', 2.0)
         self.declare_parameter('noise_magnitude', 0.4)
-        self.declare_parameter('control_period', 0.05)
         self.declare_parameter('cmd_vel_topic', "/cmd_vel")
         self.declare_parameter('vec_to_follow_topic', "/vec_to_follow")
-        self.declare_parameter('pose_topic', "/Odometry")
+        self.declare_parameter('pose_topic', "/odom")
         self.declare_parameter('pose_topic_type', "TFMessage")
-        self.declare_parameter('tf_robot_pose', "body")
-        self.declare_parameter('tf_inertial_link', "camera_init")
+        self.declare_parameter('tf_robot_pose', "base_init")
+        self.declare_parameter('tf_inertial_link', "wheel_odom")
         
         self.distancia_ponto_controle = self.get_parameter('distancia_ponto_controle').get_parameter_value().double_value
         self.const_vel = self.get_parameter('const_vel').get_parameter_value().double_value
@@ -56,10 +68,6 @@ class VectorFollowerNode(Node):
         self.STUCK_TIMEOUT = self.get_parameter('stuck_timeout').get_parameter_value().double_value
         self.ESCAPE_DURATION = self.get_parameter('escape_duration').get_parameter_value().double_value
         self.NOISE_MAGNITUDE = self.get_parameter('noise_magnitude').get_parameter_value().double_value
-        self.timer_period = self.get_parameter('control_period').get_parameter_value().double_value
-        if self.timer_period <= 0.0:
-            self.get_logger().warn("control_period must be positive; using 0.05s.")
-            self.timer_period = 0.05
         self.cmd_vel_topic = self.get_parameter('cmd_vel_topic').get_parameter_value().string_value
         self.vec_to_follow_topic = self.get_parameter('vec_to_follow_topic').get_parameter_value().string_value
         self.pose_topic = self.get_parameter('pose_topic').get_parameter_value().string_value
@@ -81,34 +89,13 @@ class VectorFollowerNode(Node):
             self.get_logger().info("Modo: Utilizando TF2 para orientação.")
             self.tf_buffer = tf2_ros.Buffer()
             self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
-        elif self.pose_topic_type == "Odometry":
+        elif self.pose_topic_type == "odom":
             self.get_logger().info(f"Modo: Utilizando tópico {self.pose_topic} para orientação.")
             self.pose_subscriber = self.create_subscription(
                 Odometry,
                 self.pose_topic,
                 self.Odometry_callback,
                 10)
-        elif self.pose_topic_type in ("PoseWithCovarience", "PoseWithCovarianceStamped"):
-            self.get_logger().info(
-                f"Modo: PoseWithCovarianceStamped em {self.pose_topic} + TF "
-                f"({self.tf_inertial_link} <- {self.tf_robot_pose}) para orientação contínua."
-            )
-            self.pose_subscriber = self.create_subscription(
-                PoseWithCovarianceStamped,
-                self.pose_topic,
-                self.amcl_pose_callback,
-                10,
-            )
-            # AMCL often stops publishing while the robot is still; the map->base TF still
-            # updates from map->odom × odom->base so we read yaw every control cycle like
-            # vector_field_control does.
-            self.tf_buffer = tf2_ros.Buffer()
-            self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
-        else:
-            self.get_logger().error(
-                f"pose_topic_type inválido: '{self.pose_topic_type}'. "
-                "Use TFMessage, Odometry ou PoseWithCovarianceStamped."
-            )
 
         # ## Variáveis de Estado ##
         self.current_vector = None
@@ -119,18 +106,17 @@ class VectorFollowerNode(Node):
         self.escape_vector = np.array([0.0, 0.0])
         
         # ## Timer do Loop de Controle ##
+        self.timer_period = 0.5  # 50Hz
         self.timer = self.create_timer(self.timer_period, self.control_loop)
         
-        self.get_logger().info(
-            f"Nó feedback_linearization iniciado (pose: {self.pose_topic_type}, period: {self.timer_period:.3f}s)."
-        )
+        self.get_logger().info("Nó Vector Follower (usando TF) iniciado com sucesso! ✅")
 
     def vector_callback(self, msg):
         """Armazena o vetor de velocidade desejada mais recente."""
         self.current_vector = msg
 
     def amcl_pose_callback(self, msg):
-        """Callback para PoseWithCovarianceStamped (ex.: /amcl_pose). Atualiza theta (yaw)."""
+        """Callback para o tópico /amcl_pose. Atualiza a orientação (theta) do robô."""
         # Extrai o quaternion da mensagem de pose
         orientation_q = msg.pose.pose.orientation
         # Converte o quaternion para o ângulo yaw (theta) e armazena
@@ -140,28 +126,12 @@ class VectorFollowerNode(Node):
     def Odometry_callback(self, msg):
         """Callback para o tópico /Odometry. Atualiza a orientação (theta) do robô."""
         orientation_q = msg.pose.pose.orientation
-        self.theta = quaternion_to_euler_yaw(orientation_q)
+        self.theta = -quaternion_to_euler_pitch(orientation_q)
 
-    def _update_theta_from_tf(self) -> bool:
-        """Atualiza self.theta a partir do TF mais recente. Retorna True se obteve transform."""
-        t = Time()
-        try:
-            if not self.tf_buffer.can_transform(
-                self.tf_inertial_link,
-                self.tf_robot_pose,
-                t,
-                timeout=Duration(seconds=0.05),
-            ):
-                return False
-            trans = self.tf_buffer.lookup_transform(
-                self.tf_inertial_link,
-                self.tf_robot_pose,
-                t,
-            )
-            self.theta = quaternion_to_euler_yaw(trans.transform.rotation)
-            return True
-        except TransformException:
-            return False
+    # def Odometry_callback(self, msg):
+    #     """Callback para o tópico /Odometry. Atualiza a orientação (theta) do robô."""
+    #     orientation_q = msg.pose.pose.orientation
+    #     self.theta = quaternion_to_euler_yaw(orientation_q)
 
     def control_loop(self):
         """Loop principal que calcula e publica os comandos de velocidade."""
@@ -170,23 +140,37 @@ class VectorFollowerNode(Node):
             return
 
         if self.pose_topic_type == "TFMessage":
-            if not self._update_theta_from_tf():
+            t = Time()  # "latest available"
+
+            # Wait for TF to exist in the buffer (prevents "frame does not exist" spam)
+            if not self.tf_buffer.can_transform(
+                self.tf_inertial_link,
+                self.tf_robot_pose,
+                t,
+                timeout=Duration(seconds=1.0)
+            ):
                 self.get_logger().warn(
                     f"Waiting TF: {self.tf_inertial_link} <- {self.tf_robot_pose}",
-                    throttle_duration_sec=2,
+                    throttle_duration_sec=2
                 )
                 return
 
-        elif self.pose_topic_type in ("PoseWithCovarience", "PoseWithCovarianceStamped"):
-            # TF em cada tick; /amcl_pose só preenche self.theta se o TF ainda não existir.
-            self._update_theta_from_tf()
+            try:
+                trans = self.tf_buffer.lookup_transform(
+                    self.tf_inertial_link,
+                    self.tf_robot_pose,
+                    t
+                )
+                self.theta = quaternion_to_euler_yaw(trans.transform.rotation)
+            except TransformException as ex:
+                self.get_logger().warn(f"Falha no TF: {ex}", throttle_duration_sec=2)
+                return
 
-        if self.theta is None:
-            self.get_logger().info(
-                "Aguardando orientação (TF / pose / odometry)...",
-                throttle_duration_sec=5,
-            )
-            return
+
+        # 2. Verificações de segurança
+        # if self.current_vector is None or self.theta is None:
+        #     self.get_logger().info("Aguardando dados (vetor/pose)...", throttle_duration_sec=5)
+        #     return
 
         # 1. Obter a transformação de 'odom' para 'base_footprint'
         # try:
@@ -245,12 +229,14 @@ class VectorFollowerNode(Node):
 
         # 5. Limitar as velocidades
         V_final = np.clip(V_final, -self.const_vel, self.const_vel)
+        #self.get_logger().info("w_final = " + str(w_final))
+
         w_final = np.clip(w_final, -self.const_omega, self.const_omega)
         
         # 6. Publicar o comando de velocidade
         twist_msg = Twist()
         twist_msg.linear.x = V_final
-        twist_msg.angular.z = w_final
+        twist_msg.angular.z =3*w_final
         self.cmd_vel_publisher.publish(twist_msg)
 
 
