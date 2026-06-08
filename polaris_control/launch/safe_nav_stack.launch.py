@@ -14,10 +14,6 @@ def generate_launch_description():
     # $(find-pkg-share polaris_control)
     polaris_control_share = get_package_share_directory('polaris_control')
     
-    # Caminho para o arquivo RViz
-    rviz_config_file = os.path.join(
-        polaris_control_share, 'config', 'demo_rviz.rviz'
-    )
     
     # Caminho para o arquivo de parâmetros do detector de obstáculos
     # $(find-pkg-share polaris_control)/config/closest_obstacle_detector_params.yaml
@@ -30,19 +26,6 @@ def generate_launch_description():
     # ===================================================================
     # Definições dos Nós
     # ===================================================================
-
-    # --- Nó do RViz ---
-    # <node pkg="rviz2" exec="rviz2" name="rviz" ...>
-    #     <param name="use_sim_time" value="false"/>
-    # </node>
-    rviz_node = Node(
-        package='rviz2',
-        executable='rviz2',
-        name='rviz',
-        output='screen',
-        arguments=['-d', rviz_config_file],
-        parameters=[{'use_sim_time': False}]
-    )
 
     # --- Nó do Controlador (Vector Field) ---
     # <node pkg="polaris_control" exec="vector_field_controller" ...>
@@ -155,7 +138,6 @@ def generate_launch_description():
     # Retorna a Descrição do Launch
     # ===================================================================
     return LaunchDescription([
-        rviz_node,
         controller_node,
         planner_node,
         closest_obstacle_detector_node,
