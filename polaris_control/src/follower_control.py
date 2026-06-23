@@ -57,6 +57,7 @@ class VectorFollowerNode(Node):
         self.declare_parameter('tf_inertial_link', "camera_init")
         self.declare_parameter('orient_point_topic', "/orient_target")
         self.declare_parameter('kp_orient', 1.0)
+        self.declare_parameter('kp_pos', 1.0)
         self.declare_parameter('stop_robot_topic', "/stop_robot")
         self.declare_parameter('stop_control_topic', "/stop_control")
         self.declare_parameter('clear_planner_service', "/clear_planner")
@@ -79,6 +80,7 @@ class VectorFollowerNode(Node):
         self.tf_inertial_link = self.get_parameter('tf_inertial_link').get_parameter_value().string_value
         self.orient_point_topic = self.get_parameter('orient_point_topic').get_parameter_value().string_value
         self.kp_orient = self.get_parameter('kp_orient').get_parameter_value().double_value
+        self.kp_pos = self.get_parameter('kp_pos').get_parameter_value().double_value
         self.stop_robot_topic = self.get_parameter('stop_robot_topic').get_parameter_value().string_value
         self.stop_control_topic = self.get_parameter('stop_control_topic').get_parameter_value().string_value
         self.clear_planner_service_name = self.get_parameter('clear_planner_service').get_parameter_value().string_value
@@ -147,7 +149,8 @@ class VectorFollowerNode(Node):
 
         self.get_logger().info(
             f"VectorFollowerNode started | pose: {self.pose_topic_type} | "
-            f"period: {self.timer_period:.3f}s | initial state: {self.state.value}"
+            f"period: {self.timer_period:.3f}s | kp_pos: {self.kp_pos} | "
+            f"kp_orient: {self.kp_orient} | initial state: {self.state.value}"
         )
 
     # ------------------------------------------------------------------ #
@@ -338,7 +341,8 @@ class VectorFollowerNode(Node):
         x_dot_global = psi_des[0]
         y_dot_global = psi_des[1]
 
-        V_final = x_dot_global * c + y_dot_global * s
+        # kp_pos scales the linear velocity command from the feedback-linearization law
+        V_final = self.kp_pos * (x_dot_global * c + y_dot_global * s)
         w_final = (1 / self.distancia_ponto_controle) * (-x_dot_global * s + y_dot_global * c)
 
         velocidade_desejada_significativa = np.linalg.norm(psi_des) > 0.1

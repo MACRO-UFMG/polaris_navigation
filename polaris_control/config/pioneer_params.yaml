@@ -54,6 +54,8 @@ follower_control:
     stop_robot_topic: "/stop_robot"
     stop_control_topic: "/stop_control"
     clear_planner_service: "/clear_planner"
+    kp_pos: 1.0
+    kp_orient: 1.0
 
 
 planner:
