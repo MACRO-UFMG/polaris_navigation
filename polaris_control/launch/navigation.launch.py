@@ -1,22 +1,31 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
-
-params_file = "pioneer_params.yaml"
+from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
 
     # Encontra o caminho para o pacote 'polaris_control'
     polaris_control_share = get_package_share_directory('polaris_control')
-    polaris_planning_share = get_package_share_directory('polaris_planning')
+
+    declare_params_file = DeclareLaunchArgument(
+        'params_file',
+        default_value='pioneer_params.yaml',
+        description='Controller params YAML filename under polaris_control/config/',
+    )
+
+    param_controller_file = PathJoinSubstitution([
+        FindPackageShare('polaris_control'),
+        'config',
+        LaunchConfiguration('params_file'),
+    ])
     
     # Define o caminho completo para o arquivo de configuração do RViz
     rviz_config_file = os.path.join(polaris_control_share, 'config', 'demo_rviz.rviz')
-
-    param_controller_file = os.path.join(polaris_control_share, 'config', params_file)
-    planner_params_file = os.path.join(polaris_planning_share, 'config', 'path_from_points.yaml')
 
     # --- Nó do RViz ---
     # <node pkg="rviz2" exec="rviz2" name="rviz" output="screen" args="-d $(find-pkg-share polaris_control)/config/demo_rviz.rviz">
@@ -50,7 +59,7 @@ def generate_launch_description():
         executable='path_from_points',
         name='planner',
         output='screen',
-        parameters=[planner_params_file]
+        parameters=[param_controller_file]
     )
 
     # --- Nós comentados (exemplo) ---
@@ -123,7 +132,8 @@ def generate_launch_description():
     # --- Retorna a Descrição do Launch ---
     # Lista de todas as ações (nós, argumentos, etc.) que você quer executar
     return LaunchDescription([
-        rviz_node,
+        declare_params_file,
+        #rviz_node,
         controller_node,
         planner_node,
         static_tf_map_to_odom,
