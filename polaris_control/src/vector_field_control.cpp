@@ -107,7 +107,7 @@ private:
         cmd_vel_topic_name_ = declare_parameter<std::string>("cmd_vel_topic_name", "vec_to_follow");
         closest_obstacle_topic_name_ = declare_parameter<std::string>("closest_obstacle_topic_name", "closest_obstacle"); // Corrected typo
         is_path_closed_service_name_ = declare_parameter<std::string>("is_path_closed_service_name", "is_path_closed");
-        tf_robot_pose_ = declare_parameter<std::string>("tf_robot_pose", "scout_mini/base_link");
+        tf_robot_pose_ = declare_parameter<std::string>("tf_robot_pose", "robot");
         tf_reference_frame_ = declare_parameter<std::string>("tf_reference_frame", "odom");
 
         // Obstacle avoidance parameters from the paper
