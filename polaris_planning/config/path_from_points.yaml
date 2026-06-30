@@ -1,3 +1,4 @@
+# DEPRECATED: use polaris_control/config/pioneer_params.yaml or scout_params.yaml (planner section).
 /**:
   ros__parameters:
     # Number of points to be sampled in between each pair of points

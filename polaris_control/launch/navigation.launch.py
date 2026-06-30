@@ -1,136 +1,123 @@
+import logging
 import os
-from ament_index_python.packages import get_package_share_directory
+
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+from launch_ros.substitutions import FindPackageShare
 
-params_file = "pioneer_params.yaml"
+_logger = logging.getLogger('navigation.launch')
 
 
-def generate_launch_description():
+def _launch_setup(context, *_args, **_kwargs):
+    package_name = 'polaris_control'
 
-    # Encontra o caminho para o pacote 'polaris_control'
-    polaris_control_share = get_package_share_directory('polaris_control')
-    polaris_planning_share = get_package_share_directory('polaris_planning')
-    
-    # Define o caminho completo para o arquivo de configuração do RViz
-    rviz_config_file = os.path.join(polaris_control_share, 'config', 'demo_rviz.rviz')
+    params_file = LaunchConfiguration('params_file').perform(context)
+    tf_robot_pose = LaunchConfiguration('tf_robot_pose').perform(context)
+    tf_reference_frame = LaunchConfiguration('tf_reference_frame').perform(context)
 
-    param_controller_file = os.path.join(polaris_control_share, 'config', params_file)
-    planner_params_file = os.path.join(polaris_planning_share, 'config', 'path_from_points.yaml')
+    pkg_share = FindPackageShare(package_name).perform(context)
+    param_config_file = os.path.join(pkg_share, 'config', params_file)
 
-    # --- Nó do RViz ---
-    # <node pkg="rviz2" exec="rviz2" name="rviz" output="screen" args="-d $(find-pkg-share polaris_control)/config/demo_rviz.rviz">
-    #     <param name="use_sim_time" value="false"/>
-    # </node>
-    rviz_node = Node(
-        package='rviz2',
-        executable='rviz2',
-        name='rviz',
-        output='screen',
-        arguments=['-d', rviz_config_file], # 'args' vira 'arguments' (uma lista)
-        parameters=[{'use_sim_time': False}] # 'param' vira 'parameters' (lista de dicts)
-    )
+    # YAML file sets all defaults; build an optional override dict for frame
+    # names so docker-compose / CI can tune them without touching the YAML.
+    overrides = {}
 
-    # --- Nó do Controlador (Vector Field) ---
-    # <node pkg="polaris_control" exec="vector_field_controller" name="controller" output="screen">
-    # </node>
+    if tf_robot_pose:
+        overrides['tf_robot_pose'] = tf_robot_pose
+    else:
+        _logger.warning(
+            '⚠️  tf_robot_pose not set via launch arg — '
+            'falling back to value in %s. Pass tf_robot_pose:=<frame> to override.',
+            params_file,
+        )
+
+    if tf_reference_frame:
+        overrides['tf_reference_frame'] = tf_reference_frame
+    else:
+        _logger.warning(
+            '⚠️  tf_reference_frame not set via launch arg — '
+            'falling back to value in %s. Pass tf_reference_frame:=<frame> to override.',
+            params_file,
+        )
+
+    parameters = [param_config_file]
+    if overrides:
+        parameters.append(overrides)
+
     controller_node = Node(
-        package='polaris_control',
+        package=package_name,
         executable='vector_field_controller',
         name='controller',
         output='screen',
-        parameters=[param_controller_file]
+        parameters=parameters,
     )
 
-    # --- Nó do Planejador ---
-    # <node pkg="polaris_planning" exec="path_from_points" name="planner" output="screen">
-    # </node>
     planner_node = Node(
         package='polaris_planning',
         executable='path_from_points',
         name='planner',
         output='screen',
-        parameters=[planner_params_file]
+        parameters=parameters,
     )
 
-    # --- Nós comentados (exemplo) ---
-    # <node pkg="polaris_control" exec="robot_simulator.py" name="robot_sim" output="screen">
-    # </node>
-    # robot_sim_node = Node(
-    #     package='polaris_control',
-    #     executable='robot_simulator.py',
-    #     name='robot_sim',
-    #     output='screen'
-    # )
-
-    # --- Nó do Publicador de TF Estática (map -> odom) ---
-    # <node pkg="tf2_ros"
-    #     exec="static_transform_publisher"
-    #     name="static_map_to_odom_publisher"
-    #     args="0 0 0 0 0 0 map odom" />
     static_tf_map_to_odom = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='static_map_to_odom_publisher',
-        # Note que 'args' no XML é uma string única, 
-        # mas 'arguments' no Python é uma lista de strings
-        arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom']
+        arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom'],
     )
 
-    # static_tf_map_to_camera_init = Node(
-    #     package='tf2_ros',
-    #     executable='static_transform_publisher',
-    #     name='static_map_to_camera_init_publisher',
-    #     # Note que 'args' no XML é uma string única, 
-    #     # mas 'arguments' no Python é uma lista de strings
-    #     arguments=['0', '0', '0', '0', '0', '0', 'map', 'camera_init']
-    # )
-
-    #tf from body to livox_frame
     static_tf_body_to_livox_frame = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='static_body_to_livox_frame_publisher',
-        # Note que 'args' no XML é uma string única, 
-        # mas 'arguments' no Python é uma lista de strings
-        #livox is 37cm above the body (37cm in z axis)
-        arguments=['0', '0', '0.32', '0', '0', '0', 'body', 'livox_frame']
+        # livox is 32 cm above the body frame
+        arguments=['0', '0', '0.32', '0', '0', '0', 'body', 'livox_frame'],
     )
-    
-    # --- Outro TF estático comentado ---
-    # <node pkg="tf2_ros"
-    #     exec="static_transform_publisher"
-    #     name="static_map_to_odom_publisher"
-    #     args="0 0 0 0 0 0 base_link fast_lio/base_link" />
-    # static_tf_base_link = Node(
-    #     package='tf2_ros',
-    #     executable='static_transform_publisher',
-    #     name='static_map_to_odom_publisher_2', # Nome precisa ser único
-    #     arguments=['0', '0', '0', '0', '0', '0', 'base_link', 'fast_lio/base_link']
-    # )
 
-    # --- Nó 'vector_follower' comentado ---
-    # <node pkg="polaris_control" exec="vector_follower_node" name="vector_follower" output="screen">
-    # </node>
-    # vector_follower_node = Node(
-    #     package='polaris_control',
-    #     executable='vector_follower_node',
-    #     name='vector_follower',
-    #     output='screen'
-    # )
-
-
-    # --- Retorna a Descrição do Launch ---
-    # Lista de todas as ações (nós, argumentos, etc.) que você quer executar
-    return LaunchDescription([
-        rviz_node,
+    return [
         controller_node,
         planner_node,
         static_tf_map_to_odom,
-        #static_tf_map_to_camera_init,
         static_tf_body_to_livox_frame,
-        # Descomente as linhas abaixo se quiser adicionar os nós comentados
-        # robot_sim_node,
-        # static_tf_base_link,
-        # vector_follower_node,
+    ]
+
+
+def generate_launch_description():
+
+    declare_params_file = DeclareLaunchArgument(
+        'params_file',
+        default_value='pioneer_params.yaml',
+        description='Controller params YAML filename under polaris_control/config/',
+    )
+
+    # TF child frame identifying the robot body (e.g. pioneer, scout_mini).
+    # Empty string means: use whatever is set in the params YAML.
+    declare_tf_robot_pose = DeclareLaunchArgument(
+        'tf_robot_pose',
+        default_value='',
+        description=(
+            'TF child frame for the robot body (e.g. pioneer, scout_mini). '
+            'If empty, the value from params_file YAML is used.'
+        ),
+    )
+
+    # TF parent (world/reference) frame used by the controller and planner.
+    # Empty string means: use whatever is set in the params YAML.
+    declare_tf_reference_frame = DeclareLaunchArgument(
+        'tf_reference_frame',
+        default_value='',
+        description=(
+            'TF parent (world/reference) frame (e.g. sim_world). '
+            'If empty, the value from params_file YAML is used.'
+        ),
+    )
+
+    return LaunchDescription([
+        declare_params_file,
+        declare_tf_robot_pose,
+        declare_tf_reference_frame,
+        OpaqueFunction(function=_launch_setup),
     ])
