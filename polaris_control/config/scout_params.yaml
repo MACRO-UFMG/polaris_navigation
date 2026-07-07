@@ -24,6 +24,12 @@ controller:
     slowdown_radius: 0.6
     min_tracking_speed: 0.08
 
+    add_measurement_noise: false
+    noise_mean_position: 0.0
+    noise_stddev_position: 0.0
+    noise_mean_yaw: 0.0
+    noise_stddev_yaw: 0.0
+
 
 feedback_linearization:
   ros__parameters:

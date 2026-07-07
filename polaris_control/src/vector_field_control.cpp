@@ -22,6 +22,7 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
+#include <random>
 
 /*
 Universidade Federal de Minas Gerais (UFMG) - 2025
@@ -56,7 +57,17 @@ private:
     double min_tracking_speed_;
     bool flag_follow_obstacle_;
     bool closed_path_flag_;
-    
+
+    // Gaussian measurement-noise injection (opt-in, disabled by default)
+    bool add_measurement_noise_;
+    double noise_mean_position_;
+    double noise_stddev_position_;
+    double noise_mean_yaw_;
+    double noise_stddev_yaw_;
+    std::default_random_engine noise_rng_;
+    std::normal_distribution<double> position_noise_dist_;
+    std::normal_distribution<double> yaw_noise_dist_;
+
     // Topic names
     std::string pose_topic_name_;
     std::string pose_topic_type_;
@@ -119,7 +130,14 @@ private:
         goal_hysteresis_ = declare_parameter<double>("goal_hysteresis", 0.22);
         slowdown_radius_ = declare_parameter<double>("slowdown_radius", 0.6);
         min_tracking_speed_ = declare_parameter<double>("min_tracking_speed", 0.08);
-        
+
+        // Gaussian measurement-noise injection (opt-in, disabled by default)
+        add_measurement_noise_ = declare_parameter<bool>("add_measurement_noise", false);
+        noise_mean_position_ = declare_parameter<double>("noise_mean_position", 0.0);
+        noise_stddev_position_ = declare_parameter<double>("noise_stddev_position", 0.0);
+        noise_mean_yaw_ = declare_parameter<double>("noise_mean_yaw", 0.0);
+        noise_stddev_yaw_ = declare_parameter<double>("noise_stddev_yaw", 0.0);
+
         closed_path_flag_ = false;
         logParameters();
     }
@@ -134,6 +152,10 @@ private:
         RCLCPP_INFO(get_logger(), "  goal_tolerance: %.2f, slowdown_radius: %.2f, min_tracking_speed: %.2f",
             goal_tolerance_, slowdown_radius_, min_tracking_speed_);
         RCLCPP_INFO(get_logger(), "  TF reference frame: %s, robot frame: %s", tf_reference_frame_.c_str(), tf_robot_pose_.c_str());
+        RCLCPP_INFO(get_logger(), "  add_measurement_noise: %s (position: N(%.3f, %.3f), yaw: N(%.3f, %.3f))",
+            add_measurement_noise_ ? "true" : "false",
+            noise_mean_position_, noise_stddev_position_,
+            noise_mean_yaw_, noise_stddev_yaw_);
         RCLCPP_INFO(get_logger(), "-----------------------------------------");
     }
 
@@ -149,6 +171,10 @@ private:
         has_obstacle_flag_ = false;
         has_pose_flag_ = false;
         goal_reached_flag_ = false;
+
+        noise_rng_.seed(std::random_device{}());
+        position_noise_dist_ = std::normal_distribution<double>(noise_mean_position_, noise_stddev_position_);
+        yaw_noise_dist_ = std::normal_distribution<double>(noise_mean_yaw_, noise_stddev_yaw_);
     }
 
     void setupROS() {
@@ -527,6 +553,12 @@ private:
         tf2::Quaternion quat(q.x, q.y, q.z, q.w);
         tf2::Matrix3x3 mat(quat);
         mat.getRPY(robot_euler_angles_[0], robot_euler_angles_[1], robot_euler_angles_[2]);
+
+        if (add_measurement_noise_) {
+            robot_pos_[0] += position_noise_dist_(noise_rng_);
+            robot_pos_[1] += position_noise_dist_(noise_rng_);
+            robot_euler_angles_[2] += yaw_noise_dist_(noise_rng_);
+        }
     }
 
     bool refreshRobotPoseFromTf() {
