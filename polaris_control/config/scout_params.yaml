@@ -2,7 +2,7 @@
 
 controller:
   ros__parameters:
-    speed_ref: 0.15
+    speed_ref: 0.3
     convergence_gain: 8.0
 
     pose_topic_type: "TFMessage"
@@ -47,7 +47,7 @@ feedback_linearization:
 follower_control:
   ros__parameters:
     distancia_ponto_controle: 0.15
-    const_vel: 1.0
+    const_vel: 0.3
     const_omega: 2.0
     control_period: 0.05
     cmd_vel_topic: "/cmd_vel"
