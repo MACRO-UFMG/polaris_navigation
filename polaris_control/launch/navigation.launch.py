@@ -3,7 +3,7 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
 
-params_file = "scout_params.yaml"
+params_file = "espeleo_params.yaml"
 
 
 def generate_launch_description():
@@ -72,6 +72,15 @@ def generate_launch_description():
         # Note que 'args' no XML é uma string única, 
         # mas 'arguments' no Python é uma lista de strings
         arguments=['0', '0', '0', '0', '0', '0', 'map', 'base_init']
+    )
+
+    static_tf_map_to_world = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_map_to_world_publisher',
+        # Note que 'args' no XML é uma string única, 
+        # mas 'arguments' no Python é uma lista de strings
+        arguments=['0', '0', '0', '0', '0', '0', 'map', 'world']
     )
 
     static_tf_base_init_to_chassis = Node(
@@ -149,7 +158,7 @@ def generate_launch_description():
         static_tf_base_init_to_chassis,
         static_tf_map_to_camera_init,
         static_tf_test,
-        
+        static_tf_map_to_world,
         # Descomente as linhas abaixo se quiser adicionar os nós comentados
         # robot_sim_node,
         # static_tf_base_link,

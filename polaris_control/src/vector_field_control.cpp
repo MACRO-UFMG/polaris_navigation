@@ -426,10 +426,15 @@ private:
     }
 
     void updateRobotPose(double x, double y, double z, const geometry_msgs::msg::Quaternion& q) {
-        robot_pos_[0] = z;
-        robot_pos_[1] = -x;
-        robot_pos_[2] = -y;
+        // Como é pra ser usado em caso de usar a imu da realsense
+        // robot_pos_[0] = z;
+        // robot_pos_[1] = -x;
+        // robot_pos_[2] = -y;
 
+        // Se for usar orientação padrão, como no Mocap
+        robot_pos_[0] = x;
+        robot_pos_[1] = y;
+        robot_pos_[2] = z;
 
         // RCLCPP_INFO(get_logger(), "  POSE RECEIVED, X: %.2f, Y: %.2f", robot_pos_[0], robot_pos_[1]);
         

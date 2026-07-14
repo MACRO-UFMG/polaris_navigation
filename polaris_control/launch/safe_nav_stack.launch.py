@@ -97,6 +97,15 @@ def generate_launch_description():
     #     arguments=['0', '0', '0', '0', '0', '0', 'map', 'camera init']
     # )
 
+    static_tf_map_to_world = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_map_to_world_publisher',
+        # Note que 'args' no XML é uma string única, 
+        # mas 'arguments' no Python é uma lista de strings
+        arguments=['0', '0', '0', '0', '0', '0', 'map', 'world']
+    )
+
     static_tf_map_to_camera_init = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
@@ -146,7 +155,7 @@ def generate_launch_description():
         static_tf_map_to_camera_init,
         static_tf_test,
         static_robo_to_velodyne,
-
+        static_tf_map_to_world,
 
         
         # Descomente as linhas abaixo se quiser adicionar os nós comentados
