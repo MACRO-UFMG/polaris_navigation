@@ -1,11 +1,15 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 params_file = "espeleo_params.yaml"
 
 def generate_launch_description():
+    publish_map_to_camera_init = LaunchConfiguration('publish_map_to_camera_init')
 
     # ===================================================================
     # Obter caminhos de pacotes e arquivos de configuração
@@ -96,7 +100,8 @@ def generate_launch_description():
         name='static_map_to_camera_init_publisher',
         # Note que 'args' no XML é uma string única, 
         # mas 'arguments' no Python é uma lista de strings
-        arguments=['0', '0', '0', '0', '0', '0', 'map', 'camera_init']
+        arguments=['0', '0', '0', '0', '0', '0', 'map', 'camera_init'],
+        condition=IfCondition(publish_map_to_camera_init),
     )
 
     # static_tf_map_to_camera_init = Node(
@@ -149,6 +154,11 @@ def generate_launch_description():
     # Retorna a Descrição do Launch
     # ===================================================================
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'publish_map_to_camera_init',
+            default_value='true',
+            description='Publish the static map to camera_init transform.',
+        ),
         rviz_node,
         controller_node,
         planner_node,
