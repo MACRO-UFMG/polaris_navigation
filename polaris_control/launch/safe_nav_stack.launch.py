@@ -3,7 +3,7 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
 
-params_file = "scout_params.yaml"
+params_file = "espeleo_params.yaml"
 
 def generate_launch_description():
 
@@ -90,13 +90,13 @@ def generate_launch_description():
 
     # --- Publicador de TF Estática 1 (scout_mini/base_link -> fast_lio/base_link) ---
     # <node pkg="tf2_ros" exec="static_transform_publisher" ...>
-    static_tf_map_to_odom = Node(
+    static_tf_map_to_camera_init = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
-        name='static_map_to_odom_publisher',
+        name='static_map_to_camera_init_publisher',
         # Note que 'args' no XML é uma string única, 
         # mas 'arguments' no Python é uma lista de strings
-        arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom']
+        arguments=['0', '0', '0', '0', '0', '0', 'map', 'camera_init']
     )
 
     # static_tf_map_to_camera_init = Node(
@@ -153,7 +153,7 @@ def generate_launch_description():
         controller_node,
         planner_node,
         closest_obstacle_detector_node,
-        static_tf_map_to_odom,
+        static_tf_map_to_camera_init,
         static_tf_body_to_livox_frame,
         
         # Descomente as linhas abaixo se quiser adicionar os nós comentados
