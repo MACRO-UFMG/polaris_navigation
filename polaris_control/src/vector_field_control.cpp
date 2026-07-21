@@ -201,7 +201,14 @@ private:
         }
         
         
-        path_sub_ = create_subscription<nav_msgs::msg::Path>(path_topic_name_, 10, std::bind(&VectorFieldController::callbackPath, this, std::placeholders::_1));
+        // TRANSIENT_LOCAL to match path_from_points.cpp's pub_path_: ref_path
+        // is a one-shot publish per plan, so if this node (re)matches after a
+        // discovery race or a brief robot-network drop, it still receives the
+        // last plan instead of silently continuing to follow a stale path.
+        rclcpp::QoS ref_path_qos(10);
+        ref_path_qos.reliable();
+        ref_path_qos.transient_local();
+        path_sub_ = create_subscription<nav_msgs::msg::Path>(path_topic_name_, ref_path_qos, std::bind(&VectorFieldController::callbackPath, this, std::placeholders::_1));
         
         obstacle_sub_ = create_subscription<geometry_msgs::msg::Point>(
             closest_obstacle_topic_name_, 10, std::bind(&VectorFieldController::callbackObstacle, this, std::placeholders::_1));

@@ -7,6 +7,10 @@ import numpy as np
 import rclpy
 from rclpy.duration import Duration
 from rclpy.node import Node
+from rclpy.qos import QoSDurabilityPolicy
+from rclpy.qos import QoSHistoryPolicy
+from rclpy.qos import QoSProfile
+from rclpy.qos import QoSReliabilityPolicy
 from rclpy.time import Time
 import tf2_ros
 from tf2_ros import TransformException
@@ -124,7 +128,18 @@ class VectorFollowerNode(Node):
             Vector3, self.vec_to_follow_topic, self.vector_callback, 10)
         self.create_subscription(PoseStamped, self.orient_point_topic, self._orient_target_cb, 10)
         self.create_subscription(Bool, self.stop_robot_topic, self._stop_robot_cb, 10)
-        self.create_subscription(Bool, self.stop_control_topic, self._stop_control_cb, 10)
+        # TRANSIENT_LOCAL to match command_publisher in op1319_manager2.py:
+        # stop_control is a one-shot FSM trigger (CONTROL_POSITION <-> ALIGN_YAW).
+        # If this node (re)matches after a discovery race or a brief
+        # robot-network drop, it still gets the last command instead of the
+        # FSM getting stuck in the wrong state.
+        stop_control_qos = QoSProfile(
+            history=QoSHistoryPolicy.KEEP_LAST,
+            depth=1,
+            reliability=QoSReliabilityPolicy.RELIABLE,
+            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+        )
+        self.create_subscription(Bool, self.stop_control_topic, self._stop_control_cb, stop_control_qos)
 
         # ## Service client for clearing the planner ##
         self.clear_planner_client = self.create_client(Trigger, self.clear_planner_service_name)
