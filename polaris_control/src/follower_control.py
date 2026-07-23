@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-import enum
 import math
 
+from FollowerControlState import FollowerControlState
 import numpy as np
 import rclpy
 from rclpy.duration import Duration
@@ -33,12 +33,6 @@ def quaternion_to_euler_yaw(q_ros):
     t3 = +2.0 * (w * z + x * y)
     t4 = +1.0 - 2.0 * (y * y + z * z)
     return math.atan2(t3, t4)
-
-
-class FSMState(enum.Enum):
-    STOPPED = "STOPPED"
-    CONTROL_POSITION = "CONTROL_POSITION"
-    ALIGN_YAW = "ALIGN_YAW"
 
 
 class VectorFollowerNode(Node):
@@ -145,7 +139,7 @@ class VectorFollowerNode(Node):
         self.clear_planner_client = self.create_client(Trigger, self.clear_planner_service_name)
 
         # ## FSM state ##
-        self.state = FSMState.STOPPED
+        self.state = FollowerControlState.STOPPED
         self._stop_robot_flag = False
         self._requested_control_state = None
         self.control_state_rx_count = 0
@@ -177,8 +171,8 @@ class VectorFollowerNode(Node):
     def vector_callback(self, msg):
         """Store the latest desired velocity vector and trigger STOPPED→CONTROL_POSITION."""
         self.current_vector = msg
-        if self.state == FSMState.STOPPED:
-            self.state = FSMState.CONTROL_POSITION
+        if self.state == FollowerControlState.STOPPED:
+            self.state = FollowerControlState.CONTROL_POSITION
             self.get_logger().info("FSM: STOPPED → CONTROL_POSITION")
 
     def _stop_robot_cb(self, msg: Bool):
@@ -190,8 +184,8 @@ class VectorFollowerNode(Node):
         """Store the latest explicit, idempotent follower control state."""
         command = msg.data.strip()
         valid_commands = {
-            FSMState.CONTROL_POSITION.value,
-            FSMState.ALIGN_YAW.value,
+            FollowerControlState.CONTROL_POSITION.value,
+            FollowerControlState.ALIGN_YAW.value,
         }
         if command not in valid_commands:
             self.get_logger().warn(
@@ -200,7 +194,7 @@ class VectorFollowerNode(Node):
             )
             return
 
-        requested_state = FSMState(command)
+        requested_state = FollowerControlState(command)
         pending_before = self._requested_control_state
         self._requested_control_state = requested_state
         self.control_state_rx_count += 1
@@ -261,11 +255,11 @@ class VectorFollowerNode(Node):
         ALIGN_YAW → STOPPED: only clears the yaw reference, no planner interaction.
         """
         prev_state = self.state
-        self.state = FSMState.STOPPED
+        self.state = FollowerControlState.STOPPED
         self.current_vector = None
         self.orient_target = None
         self.cmd_vel_publisher.publish(Twist())
-        if prev_state == FSMState.CONTROL_POSITION:
+        if prev_state == FollowerControlState.CONTROL_POSITION:
             if self.clear_planner_client.service_is_ready():
                 self.clear_planner_client.call_async(Trigger.Request())
             else:
@@ -304,12 +298,18 @@ class VectorFollowerNode(Node):
 
         # STOPPED remains controlled by /stop_robot and vector availability. Keep
         # the latest requested mode pending until the follower is active again.
-        if self._requested_control_state is not None and self.state != FSMState.STOPPED:
+        if (
+            self._requested_control_state is not None
+            and self.state != FollowerControlState.STOPPED
+        ):
             requested_state = self._requested_control_state
             self._requested_control_state = None
             previous_state = self.state
 
-            if requested_state == FSMState.ALIGN_YAW and self.state != FSMState.ALIGN_YAW:
+            if (
+                requested_state == FollowerControlState.ALIGN_YAW
+                and self.state != FollowerControlState.ALIGN_YAW
+            ):
                 self.state = requested_state
                 self.current_vector = None
                 if self.clear_planner_client.service_is_ready():
@@ -318,7 +318,7 @@ class VectorFollowerNode(Node):
                     self.get_logger().warn(
                         f"clear_planner service '{self.clear_planner_service_name}' not available; skipping."
                     )
-            elif requested_state == FSMState.CONTROL_POSITION:
+            elif requested_state == FollowerControlState.CONTROL_POSITION:
                 self.state = requested_state
 
             self.control_state_applied_count += 1
@@ -331,14 +331,14 @@ class VectorFollowerNode(Node):
             )
 
         # --- Dispatch per state ---
-        if self.state == FSMState.STOPPED:
+        if self.state == FollowerControlState.STOPPED:
             self.cmd_vel_publisher.publish(Twist())
             return
 
-        elif self.state == FSMState.ALIGN_YAW:
+        elif self.state == FollowerControlState.ALIGN_YAW:
             self._run_align_yaw()
 
-        elif self.state == FSMState.CONTROL_POSITION:
+        elif self.state == FollowerControlState.CONTROL_POSITION:
             self._run_control_position()
 
     # ------------------------------------------------------------------ #

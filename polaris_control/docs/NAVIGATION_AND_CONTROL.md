@@ -291,6 +291,9 @@ Param files use ROS 2 node namespaces (`controller:`, `feedback_linearization:`,
 toggle event. The only accepted values are `ALIGN_YAW` and `CONTROL_POSITION`.
 Publishers must use the same message type and durability. This makes duplicate
 delivery, late-joiner replay, and rapid command replacement idempotent.
+The follower imports the canonical `FollowerControlState` enum from
+`petro_rmf_utils`; `STOPPED` remains an internal FSM state selected through
+`/stop_robot`, not a valid `/stop_control` command.
 
 ### Services (polaris_planning)
 
