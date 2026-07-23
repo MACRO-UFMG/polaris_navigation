@@ -141,7 +141,8 @@ Edit `launch_planner.xml` to select `path_from_points`, `path_from_file`, or `pa
 Optional FSM flow with `follower_control`:
 
 - `/stop_robot` → halt and call `/clear_planner`
-- `/stop_control` → switch between path tracking and yaw alignment at `/inspection_pose`
+- `/stop_control` (`std_msgs/String`) → explicitly select `CONTROL_POSITION` or
+  `ALIGN_YAW` at `/inspection_pose`; commands are idempotent and transient-local
 
 ---
 

@@ -105,11 +105,17 @@ When using `follower_control.launch.py`:
 # Stop motion and clear the path (from CONTROL_POSITION)
 ros2 topic pub --once /stop_robot std_msgs/msg/Bool "{data: true}"
 
-# Switch CONTROL_POSITION ↔ ALIGN_YAW (clears path when leaving position control)
-ros2 topic pub --once /stop_control std_msgs/msg/Bool "{data: true}"
+# Select yaw alignment (clears the path only when entering ALIGN_YAW)
+ros2 topic pub --once --qos-reliability reliable --qos-durability transient_local \
+  /stop_control std_msgs/msg/String "{data: ALIGN_YAW}"
+
+# Select path tracking. Repeating either state command is harmless.
+ros2 topic pub --once --qos-reliability reliable --qos-durability transient_local \
+  /stop_control std_msgs/msg/String "{data: CONTROL_POSITION}"
 
 # Target point to face while in ALIGN_YAW (default topic: /inspection_pose)
-ros2 topic pub --once /inspection_pose geometry_msgs/msg/PoseStamped \
+ros2 topic pub --once --qos-reliability reliable --qos-durability transient_local \
+  /inspection_pose geometry_msgs/msg/PoseStamped \
   "{header: {frame_id: 'map'}, pose: {position: {x: 1.0, y: 2.0, z: 0.0}}}"
 ```
 
@@ -279,7 +285,12 @@ Param files use ROS 2 node namespaces (`controller:`, `feedback_linearization:`,
 | `/obstacle_clusters` | `MarkerArray` | `closest_obstacle_detector` | RViz |
 | `/inspection_pose` | `PoseStamped` | External / mission node | `follower_control` |
 | `/stop_robot` | `Bool` | External | `follower_control` |
-| `/stop_control` | `Bool` | External | `follower_control` |
+| `/stop_control` | `String` | External | `follower_control` |
+
+`/stop_control` is a RELIABLE + TRANSIENT_LOCAL desired-state command, not a
+toggle event. The only accepted values are `ALIGN_YAW` and `CONTROL_POSITION`.
+Publishers must use the same message type and durability. This makes duplicate
+delivery, late-joiner replay, and rapid command replacement idempotent.
 
 ### Services (polaris_planning)
 

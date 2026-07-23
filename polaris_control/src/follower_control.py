@@ -17,7 +17,7 @@ from tf2_ros import TransformException
 
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, Twist, Vector3
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, String
 from std_srvs.srv import Trigger
 
 
@@ -126,20 +126,20 @@ class VectorFollowerNode(Node):
         # ## Subscribers ##
         self.vector_subscriber = self.create_subscription(
             Vector3, self.vec_to_follow_topic, self.vector_callback, 10)
-        self.create_subscription(PoseStamped, self.orient_point_topic, self._orient_target_cb, 10)
-        self.create_subscription(Bool, self.stop_robot_topic, self._stop_robot_cb, 10)
-        # TRANSIENT_LOCAL to match command_publisher in op1319_manager2.py:
-        # stop_control is a one-shot FSM trigger (CONTROL_POSITION <-> ALIGN_YAW).
-        # If this node (re)matches after a discovery race or a brief
-        # robot-network drop, it still gets the last command instead of the
-        # FSM getting stuck in the wrong state.
-        stop_control_qos = QoSProfile(
+        # inspection_pose and stop_control are one-shot values published by the
+        # fleet manager. TRANSIENT_LOCAL lets this node recover the latest target
+        # and desired control state after discovery races or reconnects.
+        one_shot_qos = QoSProfile(
             history=QoSHistoryPolicy.KEEP_LAST,
             depth=1,
             reliability=QoSReliabilityPolicy.RELIABLE,
             durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
         )
-        self.create_subscription(Bool, self.stop_control_topic, self._stop_control_cb, stop_control_qos)
+        self.create_subscription(
+            PoseStamped, self.orient_point_topic, self._orient_target_cb, one_shot_qos)
+        self.create_subscription(Bool, self.stop_robot_topic, self._stop_robot_cb, 10)
+        self.create_subscription(
+            String, self.stop_control_topic, self._stop_control_cb, one_shot_qos)
 
         # ## Service client for clearing the planner ##
         self.clear_planner_client = self.create_client(Trigger, self.clear_planner_service_name)
@@ -147,7 +147,9 @@ class VectorFollowerNode(Node):
         # ## FSM state ##
         self.state = FSMState.STOPPED
         self._stop_robot_flag = False
-        self._stop_control_flag = False
+        self._requested_control_state = None
+        self.control_state_rx_count = 0
+        self.control_state_applied_count = 0
 
         # ## State variables ##
         self.current_vector = None
@@ -184,10 +186,31 @@ class VectorFollowerNode(Node):
         if msg.data:
             self._stop_robot_flag = True
 
-    def _stop_control_cb(self, msg: Bool):
-        """Set the stop-control flag; transition is processed in the control loop."""
-        if msg.data:
-            self._stop_control_flag = True
+    def _stop_control_cb(self, msg: String):
+        """Store the latest explicit, idempotent follower control state."""
+        command = msg.data.strip()
+        valid_commands = {
+            FSMState.CONTROL_POSITION.value,
+            FSMState.ALIGN_YAW.value,
+        }
+        if command not in valid_commands:
+            self.get_logger().warn(
+                f"Ignoring invalid control state '{msg.data}' on "
+                f"{self.stop_control_topic}; expected CONTROL_POSITION or ALIGN_YAW."
+            )
+            return
+
+        requested_state = FSMState(command)
+        pending_before = self._requested_control_state
+        self._requested_control_state = requested_state
+        self.control_state_rx_count += 1
+        self.get_logger().info(
+            "[FOLLOWER_CONTROL_STATE_RX] "
+            f"rx_count={self.control_state_rx_count} "
+            f"requested={requested_state.value} "
+            f"pending_before={pending_before.value if pending_before else 'NONE'} "
+            f"current={self.state.value}"
+        )
 
     def _orient_target_cb(self, msg: PoseStamped):
         """Store the target point the robot should face in ALIGN_YAW state."""
@@ -274,15 +297,20 @@ class VectorFollowerNode(Node):
             )
             return
 
-        # --- FSM transitions (consume flags, then reset) ---
+        # --- FSM transitions (consume requests, then reset) ---
         if self._stop_robot_flag:
             self._stop_robot_flag = False
             self._do_stop_robot()
 
-        if self._stop_control_flag:
-            self._stop_control_flag = False
-            if self.state == FSMState.CONTROL_POSITION:
-                self.state = FSMState.ALIGN_YAW
+        # STOPPED remains controlled by /stop_robot and vector availability. Keep
+        # the latest requested mode pending until the follower is active again.
+        if self._requested_control_state is not None and self.state != FSMState.STOPPED:
+            requested_state = self._requested_control_state
+            self._requested_control_state = None
+            previous_state = self.state
+
+            if requested_state == FSMState.ALIGN_YAW and self.state != FSMState.ALIGN_YAW:
+                self.state = requested_state
                 self.current_vector = None
                 if self.clear_planner_client.service_is_ready():
                     self.clear_planner_client.call_async(Trigger.Request())
@@ -290,10 +318,17 @@ class VectorFollowerNode(Node):
                     self.get_logger().warn(
                         f"clear_planner service '{self.clear_planner_service_name}' not available; skipping."
                     )
-                self.get_logger().info("FSM: CONTROL_POSITION → ALIGN_YAW (stop_control received)")
-            elif self.state == FSMState.ALIGN_YAW:
-                self.state = FSMState.CONTROL_POSITION
-                self.get_logger().info("FSM: ALIGN_YAW → CONTROL_POSITION (stop_control received)")
+            elif requested_state == FSMState.CONTROL_POSITION:
+                self.state = requested_state
+
+            self.control_state_applied_count += 1
+            self.get_logger().info(
+                "[FOLLOWER_CONTROL_STATE_APPLIED] "
+                f"applied_count={self.control_state_applied_count} "
+                f"requested={requested_state.value} "
+                f"state_before={previous_state.value} state_after={self.state.value} "
+                f"transitioned={previous_state != self.state}"
+            )
 
         # --- Dispatch per state ---
         if self.state == FSMState.STOPPED:
