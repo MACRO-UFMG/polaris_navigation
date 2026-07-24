@@ -2,7 +2,7 @@
 
 controller:
   ros__parameters:
-    speed_ref: 0.15
+    speed_ref: 0.3
     convergence_gain: 8.0
 
     pose_topic_type: "TFMessage"
@@ -24,11 +24,17 @@ controller:
     slowdown_radius: 0.6
     min_tracking_speed: 0.08
 
+    add_measurement_noise: false
+    noise_mean_position: 0.0
+    noise_stddev_position: 0.0
+    noise_mean_yaw: 0.0
+    noise_stddev_yaw: 0.0
+
 
 feedback_linearization:
   ros__parameters:
     distancia_ponto_controle: 0.15
-    const_vel: 0.15
+    const_vel: 1.0
     const_omega: 2.0
     control_period: 0.05
     cmd_vel_topic: "/cmd_vel"
@@ -41,7 +47,7 @@ feedback_linearization:
 follower_control:
   ros__parameters:
     distancia_ponto_controle: 0.15
-    const_vel: 0.15
+    const_vel: 0.3
     const_omega: 2.0
     control_period: 0.05
     cmd_vel_topic: "/cmd_vel"

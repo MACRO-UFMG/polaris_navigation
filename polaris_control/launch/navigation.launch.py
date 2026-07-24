@@ -16,13 +16,24 @@ def _launch_setup(context, *_args, **_kwargs):
     params_file = LaunchConfiguration('params_file').perform(context)
     tf_robot_pose = LaunchConfiguration('tf_robot_pose').perform(context)
     tf_reference_frame = LaunchConfiguration('tf_reference_frame').perform(context)
+    add_measurement_noise = LaunchConfiguration('add_measurement_noise').perform(context).lower() == 'true'
+    noise_mean_position = float(LaunchConfiguration('noise_mean_position').perform(context))
+    noise_stddev_position = float(LaunchConfiguration('noise_stddev_position').perform(context))
+    noise_mean_yaw = float(LaunchConfiguration('noise_mean_yaw').perform(context))
+    noise_stddev_yaw = float(LaunchConfiguration('noise_stddev_yaw').perform(context))
 
     pkg_share = FindPackageShare(package_name).perform(context)
     param_config_file = os.path.join(pkg_share, 'config', params_file)
 
     # YAML file sets all defaults; build an optional override dict for frame
     # names so docker-compose / CI can tune them without touching the YAML.
-    overrides = {}
+    overrides = {
+        'add_measurement_noise': add_measurement_noise,
+        'noise_mean_position': noise_mean_position,
+        'noise_stddev_position': noise_stddev_position,
+        'noise_mean_yaw': noise_mean_yaw,
+        'noise_stddev_yaw': noise_stddev_yaw,
+    }
 
     if tf_robot_pose:
         overrides['tf_robot_pose'] = tf_robot_pose
@@ -115,9 +126,44 @@ def generate_launch_description():
         ),
     )
 
+    declare_add_measurement_noise = DeclareLaunchArgument(
+        'add_measurement_noise',
+        default_value='false',
+        description='Enable Gaussian measurement-noise injection in updateRobotPose (controller node).',
+    )
+
+    declare_noise_mean_position = DeclareLaunchArgument(
+        'noise_mean_position',
+        default_value='0.0',
+        description='Mean of the Gaussian noise added to x/y position measurements (m).',
+    )
+
+    declare_noise_stddev_position = DeclareLaunchArgument(
+        'noise_stddev_position',
+        default_value='0.0',
+        description='Standard deviation of the Gaussian noise added to x/y position measurements (m).',
+    )
+
+    declare_noise_mean_yaw = DeclareLaunchArgument(
+        'noise_mean_yaw',
+        default_value='0.0',
+        description='Mean of the Gaussian noise added to the yaw measurement (rad).',
+    )
+
+    declare_noise_stddev_yaw = DeclareLaunchArgument(
+        'noise_stddev_yaw',
+        default_value='0.0',
+        description='Standard deviation of the Gaussian noise added to the yaw measurement (rad).',
+    )
+
     return LaunchDescription([
         declare_params_file,
         declare_tf_robot_pose,
         declare_tf_reference_frame,
+        declare_add_measurement_noise,
+        declare_noise_mean_position,
+        declare_noise_stddev_position,
+        declare_noise_mean_yaw,
+        declare_noise_stddev_yaw,
         OpaqueFunction(function=_launch_setup),
     ])
