@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
 
-import enum
 import math
 
+from FollowerControlState import FollowerControlState
 import numpy as np
 import rclpy
 from rclpy.duration import Duration
 from rclpy.node import Node
+from rclpy.qos import QoSDurabilityPolicy
+from rclpy.qos import QoSHistoryPolicy
+from rclpy.qos import QoSProfile
+from rclpy.qos import QoSReliabilityPolicy
 from rclpy.time import Time
 import tf2_ros
 from tf2_ros import TransformException
 
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, Twist, Vector3
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, String
 from std_srvs.srv import Trigger
 
 
@@ -29,13 +33,6 @@ def quaternion_to_euler_yaw(q_ros):
     t3 = +2.0 * (w * z + x * y)
     t4 = +1.0 - 2.0 * (y * y + z * z)
     return math.atan2(t3, t4)
-
-
-class FSMState(enum.Enum):
-    STOPPED = "STOPPED"
-    CONTROL_POSITION = "CONTROL_POSITION"
-    ALIGN_YAW = "ALIGN_YAW"
-    WAIT = "WAIT"
 
 
 class VectorFollowerNode(Node):
@@ -56,9 +53,9 @@ class VectorFollowerNode(Node):
         self.declare_parameter('pose_topic_type', "TFMessage")
         self.declare_parameter('tf_robot_pose', "body")
         self.declare_parameter('tf_inertial_link', "camera_init")
-        self.declare_parameter('orient_point_topic', "/inspection_pose")
-        self.declare_parameter('goal_pose_topic', "/goal_pose")
+        self.declare_parameter('orient_point_topic', "/orient_target")
         self.declare_parameter('kp_orient', 1.0)
+        self.declare_parameter('kp_pos', 1.0)
         self.declare_parameter('stop_robot_topic', "/stop_robot")
         self.declare_parameter('stop_control_topic', "/stop_control")
         self.declare_parameter('clear_planner_service', "/clear_planner")
@@ -80,8 +77,8 @@ class VectorFollowerNode(Node):
         self.tf_robot_pose = self.get_parameter('tf_robot_pose').get_parameter_value().string_value
         self.tf_inertial_link = self.get_parameter('tf_inertial_link').get_parameter_value().string_value
         self.orient_point_topic = self.get_parameter('orient_point_topic').get_parameter_value().string_value
-        self.goal_pose_topic = self.get_parameter('goal_pose_topic').get_parameter_value().string_value
         self.kp_orient = self.get_parameter('kp_orient').get_parameter_value().double_value
+        self.kp_pos = self.get_parameter('kp_pos').get_parameter_value().double_value
         self.stop_robot_topic = self.get_parameter('stop_robot_topic').get_parameter_value().string_value
         self.stop_control_topic = self.get_parameter('stop_control_topic').get_parameter_value().string_value
         self.clear_planner_service_name = self.get_parameter('clear_planner_service').get_parameter_value().string_value
@@ -123,18 +120,30 @@ class VectorFollowerNode(Node):
         # ## Subscribers ##
         self.vector_subscriber = self.create_subscription(
             Vector3, self.vec_to_follow_topic, self.vector_callback, 10)
-        self.create_subscription(PoseStamped, self.orient_point_topic, self._orient_target_cb, 10)
-        self.create_subscription(PoseStamped, self.goal_pose_topic, self.goal_pose_callback, 10)
+        # inspection_pose and stop_control are one-shot values published by the
+        # fleet manager. TRANSIENT_LOCAL lets this node recover the latest target
+        # and desired control state after discovery races or reconnects.
+        one_shot_qos = QoSProfile(
+            history=QoSHistoryPolicy.KEEP_LAST,
+            depth=1,
+            reliability=QoSReliabilityPolicy.RELIABLE,
+            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+        )
+        self.create_subscription(
+            PoseStamped, self.orient_point_topic, self._orient_target_cb, one_shot_qos)
         self.create_subscription(Bool, self.stop_robot_topic, self._stop_robot_cb, 10)
-        self.create_subscription(Bool, self.stop_control_topic, self._stop_control_cb, 10)
+        self.create_subscription(
+            String, self.stop_control_topic, self._stop_control_cb, one_shot_qos)
 
         # ## Service client for clearing the planner ##
         self.clear_planner_client = self.create_client(Trigger, self.clear_planner_service_name)
 
         # ## FSM state ##
-        self.state = FSMState.STOPPED
+        self.state = FollowerControlState.STOPPED
         self._stop_robot_flag = False
-        self._stop_control_flag = False
+        self._requested_control_state = None
+        self.control_state_rx_count = 0
+        self.control_state_applied_count = 0
 
         # ## State variables ##
         self.current_vector = None
@@ -142,21 +151,17 @@ class VectorFollowerNode(Node):
         self.stuck_timer = 0.0
         self.escape_timer = 0.0
         self.escape_vector = np.array([0.0, 0.0])
-        self.orient_target_yaw = None
+        self.orient_target = None
         self.robot_x = None
         self.robot_y = None
-        self.goal_changed = False
-        self.goal_x = None
-        self.goal_y = None
-        self.goal_theta = None
-        self.latest_goal_msg = None
 
         # ## Control timer ##
         self.timer = self.create_timer(self.timer_period, self.control_loop)
 
         self.get_logger().info(
             f"VectorFollowerNode started | pose: {self.pose_topic_type} | "
-            f"period: {self.timer_period:.3f}s | initial state: {self.state.value}"
+            f"period: {self.timer_period:.3f}s | kp_pos: {self.kp_pos} | "
+            f"kp_orient: {self.kp_orient} | initial state: {self.state.value}"
         )
 
     # ------------------------------------------------------------------ #
@@ -166,24 +171,44 @@ class VectorFollowerNode(Node):
     def vector_callback(self, msg):
         """Store the latest desired velocity vector and trigger STOPPED→CONTROL_POSITION."""
         self.current_vector = msg
-        if self.state == FSMState.STOPPED:
-            self.goal_changed = False
-            self.state = FSMState.CONTROL_POSITION
+        if self.state == FollowerControlState.STOPPED:
+            self.state = FollowerControlState.CONTROL_POSITION
             self.get_logger().info("FSM: STOPPED → CONTROL_POSITION")
 
     def _stop_robot_cb(self, msg: Bool):
         """Set the stop-robot flag; transition is processed in the control loop."""
-        if msg.data and self.state in (FSMState.CONTROL_POSITION, FSMState.ALIGN_YAW):
+        if msg.data:
             self._stop_robot_flag = True
 
-    def _stop_control_cb(self, msg: Bool):
-        """Set the stop-control flag; transition is processed in the control loop."""
-        if msg.data:
-            self._stop_control_flag = True
+    def _stop_control_cb(self, msg: String):
+        """Store the latest explicit, idempotent follower control state."""
+        command = msg.data.strip()
+        valid_commands = {
+            FollowerControlState.CONTROL_POSITION.value,
+            FollowerControlState.ALIGN_YAW.value,
+        }
+        if command not in valid_commands:
+            self.get_logger().warn(
+                f"Ignoring invalid control state '{msg.data}' on "
+                f"{self.stop_control_topic}; expected CONTROL_POSITION or ALIGN_YAW."
+            )
+            return
+
+        requested_state = FollowerControlState(command)
+        pending_before = self._requested_control_state
+        self._requested_control_state = requested_state
+        self.control_state_rx_count += 1
+        self.get_logger().info(
+            "[FOLLOWER_CONTROL_STATE_RX] "
+            f"rx_count={self.control_state_rx_count} "
+            f"requested={requested_state.value} "
+            f"pending_before={pending_before.value if pending_before else 'NONE'} "
+            f"current={self.state.value}"
+        )
 
     def _orient_target_cb(self, msg: PoseStamped):
-        """Store the inspection pose yaw the robot should align to in ALIGN_YAW state."""
-        self.orient_target_yaw = quaternion_to_euler_yaw(msg.pose.orientation)
+        """Store the target point the robot should face in ALIGN_YAW state."""
+        self.orient_target = msg.pose.position
 
     def amcl_pose_callback(self, msg: PoseWithCovarianceStamped):
         orientation_q = msg.pose.pose.orientation
@@ -196,28 +221,6 @@ class VectorFollowerNode(Node):
         self.theta = quaternion_to_euler_yaw(orientation_q)
         self.robot_x = msg.pose.pose.position.x
         self.robot_y = msg.pose.pose.position.y
-
-    def goal_pose_callback(self, msg: PoseStamped):
-        new_x = msg.pose.position.x
-        new_y = msg.pose.position.y
-        new_theta = quaternion_to_euler_yaw(msg.pose.orientation)
-
-        if self.goal_x is None:
-            self.goal_changed = True
-        else:
-            dx = abs(new_x - self.goal_x)
-            dy = abs(new_y - self.goal_y)
-            dtheta = abs(math.atan2(
-                math.sin(new_theta - self.goal_theta),
-                math.cos(new_theta - self.goal_theta),
-            ))
-
-            self.goal_changed = dx > 0.01 or dy > 0.01 or dtheta > 0.02
-
-        self.goal_x = new_x
-        self.goal_y = new_y
-        self.goal_theta = new_theta
-        self.latest_goal_msg = msg
 
     def _update_theta_from_tf(self) -> bool:
         t = Time()
@@ -246,13 +249,24 @@ class VectorFollowerNode(Node):
     # ------------------------------------------------------------------ #
 
     def _do_stop_robot(self):
-        """Transition to WAIT, halt the robot, and clear active references."""
+        """Transition to STOPPED: halt robot and clear all references.
+
+        CONTROL_POSITION → STOPPED: also calls clear_planner (discards the path reference).
+        ALIGN_YAW → STOPPED: only clears the yaw reference, no planner interaction.
+        """
         prev_state = self.state
-        self.state = FSMState.WAIT
+        self.state = FollowerControlState.STOPPED
         self.current_vector = None
-        self.orient_target_yaw = None
+        self.orient_target = None
         self.cmd_vel_publisher.publish(Twist())
-        self.get_logger().info(f"FSM: {prev_state.value} → WAIT (stop_robot received)")
+        if prev_state == FollowerControlState.CONTROL_POSITION:
+            if self.clear_planner_client.service_is_ready():
+                self.clear_planner_client.call_async(Trigger.Request())
+            else:
+                self.get_logger().warn(
+                    f"clear_planner service '{self.clear_planner_service_name}' not available; skipping."
+                )
+        self.get_logger().info(f"FSM: {prev_state.value} → STOPPED (stop_robot received)")
 
     # ------------------------------------------------------------------ #
     #  Control loop                                                        #
@@ -277,15 +291,26 @@ class VectorFollowerNode(Node):
             )
             return
 
-        # --- FSM transitions (consume flags, then reset) ---
+        # --- FSM transitions (consume requests, then reset) ---
         if self._stop_robot_flag:
             self._stop_robot_flag = False
             self._do_stop_robot()
 
-        if self._stop_control_flag:
-            self._stop_control_flag = False
-            if self.state == FSMState.CONTROL_POSITION:
-                self.state = FSMState.ALIGN_YAW
+        # STOPPED remains controlled by /stop_robot and vector availability. Keep
+        # the latest requested mode pending until the follower is active again.
+        if (
+            self._requested_control_state is not None
+            and self.state != FollowerControlState.STOPPED
+        ):
+            requested_state = self._requested_control_state
+            self._requested_control_state = None
+            previous_state = self.state
+
+            if (
+                requested_state == FollowerControlState.ALIGN_YAW
+                and self.state != FollowerControlState.ALIGN_YAW
+            ):
+                self.state = requested_state
                 self.current_vector = None
                 if self.clear_planner_client.service_is_ready():
                     self.clear_planner_client.call_async(Trigger.Request())
@@ -293,38 +318,45 @@ class VectorFollowerNode(Node):
                     self.get_logger().warn(
                         f"clear_planner service '{self.clear_planner_service_name}' not available; skipping."
                     )
-                self.get_logger().info("FSM: CONTROL_POSITION → ALIGN_YAW (stop_control received)")
-            elif self.state == FSMState.ALIGN_YAW:
-                self.state = FSMState.CONTROL_POSITION
-                self.get_logger().info("FSM: ALIGN_YAW → CONTROL_POSITION (stop_control received)")
+            elif requested_state == FollowerControlState.CONTROL_POSITION:
+                self.state = requested_state
+
+            self.control_state_applied_count += 1
+            self.get_logger().info(
+                "[FOLLOWER_CONTROL_STATE_APPLIED] "
+                f"applied_count={self.control_state_applied_count} "
+                f"requested={requested_state.value} "
+                f"state_before={previous_state.value} state_after={self.state.value} "
+                f"transitioned={previous_state != self.state}"
+            )
 
         # --- Dispatch per state ---
-        if self.state == FSMState.STOPPED:
+        if self.state == FollowerControlState.STOPPED:
             self.cmd_vel_publisher.publish(Twist())
             return
 
-        elif self.state == FSMState.ALIGN_YAW:
+        elif self.state == FollowerControlState.ALIGN_YAW:
             self._run_align_yaw()
 
-        elif self.state == FSMState.CONTROL_POSITION:
+        elif self.state == FollowerControlState.CONTROL_POSITION:
             self._run_control_position()
-        elif self.state == FSMState.WAIT:
-            self.run_wait()
 
     # ------------------------------------------------------------------ #
     #  State behaviours                                                    #
     # ------------------------------------------------------------------ #
 
     def _run_align_yaw(self):
-        """P controller that rotates the robot to the inspection pose yaw."""
-        if self.orient_target_yaw is None:
+        """P controller that rotates the robot to face orient_target."""
+        if self.orient_target is None or self.robot_x is None:
             self.get_logger().info(
-                "ALIGN_YAW: aguardando inspection_pose...",
+                "ALIGN_YAW: aguardando orient_target e posição do robô...",
                 throttle_duration_sec=5,
             )
             self.cmd_vel_publisher.publish(Twist())
             return
-        theta_des = self.orient_target_yaw
+        dx = self.orient_target.x - self.robot_x
+        dy = self.orient_target.y - self.robot_y
+        theta_des = math.atan2(dy, dx)
         e_theta = math.atan2(
             math.sin(theta_des - self.theta),
             math.cos(theta_des - self.theta),
@@ -359,7 +391,8 @@ class VectorFollowerNode(Node):
         x_dot_global = psi_des[0]
         y_dot_global = psi_des[1]
 
-        V_final = x_dot_global * c + y_dot_global * s
+        # kp_pos scales the linear velocity command from the feedback-linearization law
+        V_final = self.kp_pos * (x_dot_global * c + y_dot_global * s)
         w_final = (1 / self.distancia_ponto_controle) * (-x_dot_global * s + y_dot_global * c)
 
         velocidade_desejada_significativa = np.linalg.norm(psi_des) > 0.1
@@ -377,14 +410,6 @@ class VectorFollowerNode(Node):
         twist_msg.linear.x = V_final
         twist_msg.angular.z = w_final
         self.cmd_vel_publisher.publish(twist_msg)
-
-    def run_wait(self):
-        """Hold the robot stopped until a new goal pose arrives."""
-        self.cmd_vel_publisher.publish(Twist())
-        if self.goal_changed:
-            self.get_logger().info("Nova pose recebida, estado passando pra STOPPED.")
-            self.state = FSMState.STOPPED
-            self.goal_changed = False
 
 
 def main(args=None):
