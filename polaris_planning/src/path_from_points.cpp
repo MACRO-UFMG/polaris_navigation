@@ -85,14 +85,27 @@ public:
         tf_buffer_ = std::make_unique<tf2_ros::Buffer>(get_clock());
         tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
+        // ref_path is a one-shot message per plan: the fleet manager (or
+        // rviz) publishes a new goal, this node computes the path once and
+        // publishes it once. TRANSIENT_LOCAL caches the last plan so a
+        // vector_field_control.cpp reader that (re)matches after a discovery
+        // race or a brief robot-network drop still receives it, instead of
+        // being stuck following a stale/empty path.
+        rclcpp::QoS latched_qos(1);
+        latched_qos.reliable();
+        latched_qos.transient_local();
+
         // Initialize publishers
-        pub_path_ = this->create_publisher<nav_msgs::msg::Path>(path_topic_name_, 10);
+        pub_path_ = this->create_publisher<nav_msgs::msg::Path>(path_topic_name_, latched_qos);
         pub_marker_ = this->create_publisher<visualization_msgs::msg::MarkerArray>(visualization_topic_name_, 10);
         pub_waypoints_ = this->create_publisher<visualization_msgs::msg::MarkerArray>(visualization_topic_name_, 10);
 
         // Initialize subscribers
+        // Matches the TRANSIENT_LOCAL QoS the fleet manager now uses for
+        // target_publisher (op1319_manager2.py), so this node also picks up
+        // the last goal pose if it was published before we finished matching.
         clicked_point_subscription_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
-            clicked_point_topic_name_, 10,
+            clicked_point_topic_name_, latched_qos,
             std::bind(&PathFromPoints::callback_new_point, this, std::placeholders::_1));
             
         if (pose_topic_type_ == "TFMessage") {
