@@ -1,0 +1,34 @@
+/**:
+  ros__parameters:
+    # 5 -> Lemniscate (Bernoulli)
+    path_number: 5
+
+    # Number of points to be sampled
+    number_of_samples: 200
+
+    # Stretch factor of the curve in the x direction
+    a: 1.2
+    # Stretch factor of the curve in the y direction
+    b: 0.5
+    # Rotation of the curve around the z axis (in degrees)
+    phi: 0.0
+    # Displacement in the x direction (meters)
+    cx: 0.0
+    # Displacement in the y direction (meters)
+    cy: 0.0
+
+    # Flag to indicate if the path is closed or not
+    closed_path_flag: True
+    # Number of points to be inserted between each pair of points
+    insert_n_points: 5
+    # Number of points to use in the average filter (odd; 0 = no filter)
+    filter_path_n_average: 5
+
+    # Marker parameters
+    marker_scale: 0.03
+    marker_z_offset: 0.1
+    frame_id: "map"
+
+    # Topic names (must match polaris_control path_topic_name)
+    publish_path_topic_name: "/ref_path"
+    visual_path_topic_name: "/visual_path"

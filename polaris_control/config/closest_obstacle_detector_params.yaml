@@ -6,7 +6,7 @@ closest_obstacle_detector:
     visualization_topic: "/obstacle_clusters"
     
     # Frame IDs
-    laser_frame: "body"                 # /scan is generated in the robot body frame
+    laser_frame: "espeleo/base_link"                 # /scan is generated in the robot body frame
     world_frame: "map"               # Frame global (odom ou map)
     
     # DBSCAN Clustering Parameters

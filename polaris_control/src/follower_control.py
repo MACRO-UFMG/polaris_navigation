@@ -353,8 +353,8 @@ class VectorFollowerNode(Node):
         w_final = np.clip(w_final, -self.const_omega, self.const_omega)
 
         twist_msg = Twist()
-        twist_msg.linear.x = V_final
-        twist_msg.angular.z = w_final
+        twist_msg.linear.x = 0.3*V_final
+        twist_msg.angular.z = 8*w_final
         self.cmd_vel_publisher.publish(twist_msg)
 
 

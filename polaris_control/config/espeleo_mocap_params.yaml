@@ -1,0 +1,65 @@
+# Polaris params for OptiTrack ground-truth navigation.
+# Expects external mocap TF: map -> espeleo/base_link
+
+controller:
+  ros__parameters:
+    speed_ref: 0.25
+    convergence_gain: 6.0
+
+    pose_topic_type: "TFMessage"
+    pose_topic_name: "/tf"
+    tf_reference_frame: "map"
+    tf_robot_pose: "espeleo/base_link"
+
+    path_topic_name: "ref_path"
+    cmd_vel_topic_name: "vec_to_follow"
+    closest_obstacle_topic_name: "closest_obstacle"
+    is_path_closed_service_name: "is_path_closed"
+
+    flag_follow_obstacle: false
+    lambda: 0.6
+    switch_dist: 0.6
+    switch_dist_outer: 0.9
+    goal_tolerance: 0.15
+    goal_hysteresis: 0.22
+    slowdown_radius: 0.6
+    min_tracking_speed: 0.08
+
+
+feedback_linearization:
+  ros__parameters:
+    distancia_ponto_controle: 0.10
+    const_vel: 0.25
+    const_omega: 12.0
+    control_period: 0.05
+    cmd_vel_topic: "/cmd_vel"
+    vec_to_follow_topic: "/vec_to_follow"
+    pose_topic_type: "TFMessage"
+    pose_topic: "/tf"
+    tf_robot_pose: "espeleo/base_link"
+    tf_inertial_link: "map"
+
+follower_control:
+  ros__parameters:
+    distancia_ponto_controle: 0.10
+    const_vel: 0.25
+    const_omega: 12.0
+    control_period: 0.05
+    cmd_vel_topic: "/cmd_vel"
+    vec_to_follow_topic: "/vec_to_follow"
+    pose_topic_type: "TFMessage"
+    pose_topic: "/tf"
+    tf_robot_pose: "espeleo/base_link"
+    tf_inertial_link: "map"
+    orient_point_topic: "/inspection_pose"
+    stop_robot_topic: "/stop_robot"
+    stop_control_topic: "/stop_control"
+    clear_planner_service: "/clear_planner"
+
+
+planner:
+  ros__parameters:
+    pose_topic_type: "TFMessage"
+    pose_topic_name: "/tf"
+    tf_reference_frame: "map"
+    tf_robot_pose: "espeleo/base_link"
