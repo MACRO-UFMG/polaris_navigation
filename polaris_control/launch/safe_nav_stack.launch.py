@@ -216,7 +216,7 @@ def _launch_setup(context, *args, **kwargs):
         controller_node,
         planner_node,
         closest_obstacle_detector_node,
-        static_tf_map_to_camera_init,
+        #static_tf_map_to_camera_init,
         static_tf_odom_to_camera_init,
         static_tf_map_to_chassis_init,
         static_tf_world_to_map,

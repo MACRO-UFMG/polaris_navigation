@@ -6,7 +6,7 @@ from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
-DEFAULT_PARAMS_FILE = "pioneer_params.yaml"
+DEFAULT_PARAMS_FILE = "espeleo_params.yaml"
 
 
 def _resolve_params_file(params_file_arg, package_share, source_config_dirs=None):

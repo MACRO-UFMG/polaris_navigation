@@ -5,8 +5,8 @@ controller:
     speed_ref: 0.15
     convergence_gain: 2.0
 
-    pose_topic_type: "TFMessage"
-    pose_topic_name: "/tf"
+    pose_topic_type: "PoseWithCovarianceStamped"
+    pose_topic_name: "/amcl_pose"
     tf_reference_frame: "map"
     tf_robot_pose: "body"
 
@@ -33,8 +33,8 @@ feedback_linearization:
     control_period: 0.05
     cmd_vel_topic: "/cmd_vel"
     vec_to_follow_topic: "/vec_to_follow"
-    pose_topic_type: "TFMessage"
-    pose_topic: "/tf"
+    pose_topic_type: "PoseWithCovarianceStamped"
+    pose_topic: "/amcl_pose"
     tf_robot_pose: "body"
     tf_inertial_link: "map"
 
@@ -46,8 +46,8 @@ follower_control:
     control_period: 0.05
     cmd_vel_topic: "/cmd_vel"
     vec_to_follow_topic: "/vec_to_follow"
-    pose_topic_type: "TFMessage"
-    pose_topic: "/tf"
+    pose_topic_type: "PoseWithCovarianceStamped"
+    pose_topic: "/amcl_pose"
     tf_robot_pose: "body"
     tf_inertial_link: "map"
     orient_point_topic: "/inspection_pose"
