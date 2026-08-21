@@ -23,6 +23,8 @@ controller:
     goal_hysteresis: 0.22
     slowdown_radius: 0.6
     min_tracking_speed: 0.08
+    planner_type: "points"
+    
 
 
 feedback_linearization:
